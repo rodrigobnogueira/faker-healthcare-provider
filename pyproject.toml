@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faker-healthcare"
+version = "0.1.0"
+description = "Faker provider for generating healthcare/medical fake data"
+readme = "README.md"
+license = {text = "MIT"}
+keywords = ["faker", "healthcare", "medical", "icd10", "fake-data", "testing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "faker>=18.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/rodrigobnogueira/faker-healthcare"
+Repository = "https://github.com/rodrigobnogueira/faker-healthcare"
+
+[tool.setuptools.packages.find]
+where = ["."]
