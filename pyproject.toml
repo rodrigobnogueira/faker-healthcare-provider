@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faker-healthcare-provider"
-version = "1.0.0"
-description = "Faker provider for generating healthcare/medical fake data"
+version = "1.0.1"
+description = "A Faker provider for generating realistic healthcare test data: diseases, ICD-10 codes, medications, procedures, and more"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["faker", "healthcare", "medical", "icd10", "fake-data", "testing"]
