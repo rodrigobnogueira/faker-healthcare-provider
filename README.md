@@ -5,7 +5,7 @@ Faker provider for generating healthcare/medical fake data.
 ## Installation
 
 ```bash
-pip install faker-healthcare
+pip install faker-healthcare-provider
 ```
 
 ## Usage
