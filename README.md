@@ -1,4 +1,4 @@
-# faker-healthcare
+# faker-healthcare-provider
 
 Faker provider for generating healthcare/medical fake data.
 
