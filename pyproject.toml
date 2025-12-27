@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faker-healthcare-provider"
-version = "1.0.2"
-description = "Generate realistic healthcare test data: 150+ diseases, 300+ WHO ICD-10 codes, 400+ medications, 100+ procedures, symptoms, and more"
+version = "2.0.0"
+description = "Generate realistic healthcare test data in 6 languages (en, es, pt, zh, fr, de): 150+ diseases, 300+ ICD-10 codes, 400+ medications, procedures, and more"
 readme = "README.md"
 license = {text = "MIT"}
-keywords = ["faker", "healthcare", "medical", "icd10", "fake-data", "testing"]
+keywords = ["faker", "healthcare", "medical", "icd10", "fake-data", "testing", "multilingual", "i18n", "localization"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
