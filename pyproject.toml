@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faker-healthcare-provider"
-version = "2.0.0"
-description = "Generate realistic healthcare test data in 6 languages (en, es, pt, zh, fr, de): 150+ diseases, 300+ ICD-10 codes, 400+ medications, procedures, and more"
+version = "2.1.0"
+description = "Generate realistic healthcare test data in 6 languages (en, es, pt, zh, fr, de): 150+ diseases with correlated ICD-10 codes, medications, symptoms, and more"
 readme = "README.md"
 authors = [{name = "Rodrigo Nogueira", email = "rodrigo.b.nogueira@gmail.com"}]
 license = {text = "MIT"}
@@ -25,9 +25,28 @@ dependencies = [
     "faker>=18.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "pre-commit",
+]
+
 [project.urls]
 Homepage = "https://github.com/rodrigobnogueira/faker-healthcare"
 Repository = "https://github.com/rodrigobnogueira/faker-healthcare"
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.ruff]
+line-length = 200
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2

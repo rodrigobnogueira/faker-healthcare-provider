@@ -1,6 +1,8 @@
 # faker-healthcare-provider
 
-Generate realistic healthcare/medical test data in **6 languages**: English, Spanish, Portuguese, Chinese, French, and German.
+Generate realistic, **medically accurate, and correlated** healthcare/medical test data in **6 languages**: English, Spanish, Portuguese, Chinese, French, and German.
+
+This provider generates **correlated clinical data** based on the **World Health Organization (WHO) ICD-10 classification**, ensuring that symptoms, medications, specialties, and diagnostic codes match the generated disease.
 
 ## Installation
 

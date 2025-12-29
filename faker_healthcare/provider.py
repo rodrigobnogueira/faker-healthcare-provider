@@ -1,226 +1,46 @@
+from typing import Any
+
 from faker.providers import BaseProvider, ElementsType
+
+from .disease_correlations import DISEASE_CORRELATIONS
 
 
 class HealthcareProvider(BaseProvider):
-    """Faker provider for generating healthcare/medical fake data."""
+    """Faker provider for generating healthcare/medical fake data.
 
-    diseases: ElementsType[str] = (
-        "Type 2 Diabetes",
-        "Essential Hypertension",
-        "Hyperlipidemia",
-        "Coronary Artery Disease",
-        "Chronic Obstructive Pulmonary Disease",
-        "Asthma",
-        "Chronic Kidney Disease",
-        "Osteoarthritis",
-        "Rheumatoid Arthritis",
-        "Depression",
-        "Anxiety Disorder",
-        "Gastroesophageal Reflux Disease",
-        "Obesity",
-        "Hypothyroidism",
-        "Atrial Fibrillation",
-        "Congestive Heart Failure",
-        "Pneumonia",
-        "Urinary Tract Infection",
-        "Acute Bronchitis",
-        "Anemia",
-        "Migraine",
-        "Stroke",
-        "Alzheimer's Disease",
-        "Breast Cancer",
-        "Prostate Cancer",
-        "Lung Cancer",
-        "COVID-19",
-        "Influenza",
-        "Osteoporosis",
-        "Peripheral Artery Disease",
-        "Angina Pectoris",
-        "Hyperthyroidism",
-        "Gout",
-        "Multiple Sclerosis",
-        "Parkinson's Disease",
-        "Epilepsy",
-        "Bipolar Disorder",
-        "Schizophrenia",
-        "Attention Deficit Hyperactivity Disorder",
-        "Autism Spectrum Disorder",
-        "Crohn's Disease",
-        "Ulcerative Colitis",
-        "Irritable Bowel Syndrome",
-        "Celiac Disease",
-        "Cirrhosis",
-        "Hepatitis C",
-        "HIV/AIDS",
-        "Tuberculosis",
-        "Sepsis",
-        "Deep Vein Thrombosis",
-        "Pulmonary Embolism",
-        "Aortic Aneurysm",
-        "Valvular Heart Disease",
-        "Cardiomyopathy",
-        "Endocarditis",
-        "Pericarditis",
-        "Myocardial Infarction",
-        "Congenital Heart Disease",
-        "Peripheral Neuropathy",
-        "Sleep Apnea",
-        "Narcolepsy",
-        "Restless Leg Syndrome",
-        "Fibromyalgia",
-        "Lupus",
-        "Scleroderma",
-        "Sj" + "ögren's Syndrome",
-        "Psoriasis",
-        "Eczema",
-        "Rosacea",
-        "Acne Vulgaris",
-        "Melanoma",
-        "Basal Cell Carcinoma",
-        "Squamous Cell Carcinoma",
-        "Leukemia",
-        "Lymphoma",
-        "Myeloma",
-        "Colon Cancer",
-        "Pancreatic Cancer",
-        "Kidney Cancer",
-        "Bladder Cancer",
-        "Ovarian Cancer",
-        "Endometrial Cancer",
-        "Thyroid Cancer",
-        "Brain Tumor",
-        "Glaucoma",
-        "Macular Degeneration",
-        "Cataracts",
-        "Diabetic Retinopathy",
-        "Hearing Loss",
-        "Meniere's Disease",
-        "Benign Prostatic Hyperplasia",
-        "Erectile Dysfunction",
-        "Polycystic Ovary Syndrome",
-        "Endometriosis",
-        "Uterine Fibroids",
-        "Preeclampsia",
-        "Gestational Diabetes",
-        "Vitamin D Deficiency",
-        "Iron Deficiency Anemia",
-        "Pernicious Anemia",
-        "Sickle Cell Disease",
-        "Hemophilia",
-        "Thrombocytopenia",
-        "Leukopenia",
-        "Diverticulitis",
-        "Appendicitis",
-        "Cholecystitis",
-        "Pancreatitis",
-        "Peptic Ulcer Disease",
-        "Gastritis",
-        "Esophagitis",
-        "Barrett's Esophagus",
-        "Hiatal Hernia",
-        "Hemorrhoids",
-        "Anal Fissure",
-        "Fecal Incontinence",
-        "Acute Kidney Injury",
-        "Nephrotic Syndrome",
-        "Polycystic Kidney Disease",
-        "Kidney Stones",
-        "Interstitial Cystitis",
-        "Overactive Bladder",
-        "Stress Incontinence",
-        "Urge Incontinence",
-        "Pyelonephritis",
-        "Glomerulonephritis",
-        "Acute Sinusitis",
-        "Chronic Sinusitis",
-        "Allergic Rhinitis",
-        "Otitis Media",
-        "Otitis Externa",
-        "Pharyngitis",
-        "Tonsillitis",
-        "Laryngitis",
-        "Croup",
-        "Bronchiolitis",
-        "Emphysema",
-        "Cystic Fibrosis",
-        "Interstitial Lung Disease",
-        "Sarcoidosis",
-        "Pleural Effusion",
-        "Pneumothorax",
-        "Pulmonary Hypertension",
-    )
+    This provider generates correlated clinical data based on medical relationships
+    between diseases, symptoms, medications, and ICD-10 codes.
 
-    icd10_codes: ElementsType[str] = (
-        "E11.9", "I10", "E78.5", "I25.10", "J44.9",
-        "J45.909", "N18.9", "M17.9", "M79.1", "F32.9",
-        "F41.9", "K21.9", "E66.9", "E03.9", "I48.91",
-        "I50.9", "J18.9", "N39.0", "J20.9", "D64.9",
-        "G43.909", "I63.9", "G30.9", "R10.9", "R50.9",
-        "R06.00", "R53.81", "Z00.00", "Z79.899", "Z68.1",
-        "C50.919", "C61", "C34.90", "U07.1", "J11.1",
-        "M81.0", "I73.9", "K70.30", "G20", "E10.9",
-        "I20.9", "E05.90", "M10.9", "G35", "G21.9",
-        "G40.909", "F31.9", "F20.9", "F90.9", "F84.0",
-        "K50.90", "K51.90", "K58.9", "K90.0", "K74.60",
-        "B18.2", "B20", "A15.9", "A41.9", "I82.409",
-        "I26.99", "I71.9", "I35.9", "I42.9", "I33.9",
-        "I30.9", "I21.9", "Q24.9", "G62.9", "G47.33",
-        "G47.419", "G25.81", "M79.7", "M32.9", "M34.9",
-        "M35.00", "L40.9", "L20.9", "L71.9", "L70.0",
-        "C43.9", "C44.91", "C44.92", "C95.90", "C85.90",
-        "C90.00", "C18.9", "C25.9", "C64.9", "C67.9",
-        "C56.9", "C54.1", "C73", "C71.9", "H40.9",
-        "H35.30", "H25.9", "H36", "H90.3", "H81.0",
-        "N40.0", "N52.9", "E28.2", "N80.9", "D25.9",
-        "O14.9", "O24.919", "E55.9", "D50.9", "D51.0",
-        "D57.1", "D66", "D69.6", "D70.9", "K57.90",
-        "K35.80", "K81.9", "K85.90", "K27.9", "K29.70",
-        "K20.9", "K22.70", "K44.9", "I84.9", "K60.2",
-        "R15.9", "N17.9", "N04.9", "Q61.9", "N20.0",
-        "N30.10", "N32.81", "N39.3", "N39.41", "N10",
-        "N05.9", "J01.90", "J32.9", "J30.9", "H66.90",
-        "H60.90", "J02.9", "J03.90", "J04.0", "J05.0",
-        "J21.9", "J43.9", "E84.9", "J84.9", "D86.9",
-        "J90", "J93.9", "I27.20", "Z00.01", "Z00.121",
-        "Z00.129", "Z13.6", "Z13.89", "Z23", "J06.9",
-        "R07.9", "M54.5", "M25.50", "M19.90", "R51.9",
-        "R53.83", "E78.0", "I11.9", "I25.5", "I63.50",
-        "I67.9", "I70.0", "I21.3", "I21.4", "I48.0",
-        "I48.2", "I49.9", "I50.1", "I50.20", "I50.30",
-        "I50.40", "I61.9", "I63.40", "I64", "I69.30",
-        "I80.10", "I80.20", "I80.3", "I82.40", "I82.90",
-        "I83.90", "I87.2", "I95.9", "J00", "J02.0",
-        "J03.00", "J04.10", "J05.10", "J12.89", "J15.9",
-        "J18.0", "J18.1", "J20.0", "J20.8", "J21.0",
-        "J40", "J41.0", "J42", "J44.0", "J44.1",
-        "J45.20", "J45.30", "J45.40", "J45.50", "J45.901",
-        "J47.0", "J47.9", "J60", "J61", "J70.9",
-        "J80", "J81.0", "J82", "J84.10", "J84.112",
-        "J84.117", "J84.170", "J84.89", "J91.8", "J92.0",
-        "J93.0", "J93.11", "J93.12", "J93.81", "J94.0",
-        "J94.2", "J94.8", "J95.1", "J95.2", "J96.00",
-        "J96.01", "J96.02", "J96.10", "J96.11", "J96.12",
-        "J96.20", "J96.21", "J96.22", "J96.90", "J96.91",
-        "J96.92", "J98.4", "J98.9", "K02.9", "K03.9",
-        "K04.7", "K04.90", "K05.6", "K08.9", "K12.0",
-        "K21.0", "K22.0", "K22.10", "K22.2", "K22.6",
-        "K25.9", "K26.9", "K28.9", "K29.00", "K29.50",
-        "K29.60", "K30", "K31.84", "K31.9", "K35.2",
-        "K35.3", "K36", "K38.9", "K40.90", "K42.9",
-        "K43.9", "K46.9", "K50.00", "K50.10", "K50.80",
-        "K51.00", "K51.20", "K51.30", "K51.50", "K51.80",
-        "K52.9", "K55.0", "K56.0", "K56.60", "K57.30",
-        "K57.32", "K57.50", "K57.92", "K58.0", "K59.00",
-        "K59.01", "K59.02", "K59.09", "K59.1", "K59.2",
-        "K59.3", "K59.4", "K60.0", "K60.1", "K60.3",
-        "K60.4", "K61.0", "K62.5", "K63.5", "K64.9",
-        "K70.0", "K70.10", "K70.9", "K71.9", "K72.00",
-        "K72.10", "K72.90", "K73.9", "K74.0", "K74.3",
-        "K75.9", "K76.0", "K76.9", "K80.20", "K80.50",
-        "K82.9", "K83.0", "K85.00", "K85.10", "K85.20",
-        "K85.30", "K85.80", "K86.0", "K86.1", "K86.9",
-        "K91.2", "K92.0", "K92.1", "K92.2", "K92.9",
-    )
+    MEDICAL DISCLAIMER: This data is for TESTING AND DEVELOPMENT PURPOSES ONLY.
+    It should NOT be used for actual medical diagnosis, treatment, or healthcare decisions.
+    """
+
+    @property
+    def diseases(self) -> tuple[str, ...]:
+        """All disease names (derived from DISEASE_CORRELATIONS)."""
+        return tuple(DISEASE_CORRELATIONS.keys())
+
+    @property
+    def icd10_codes(self) -> tuple[str, ...]:
+        """All ICD-10 codes (derived from DISEASE_CORRELATIONS)."""
+        codes = {data["icd10"] for data in DISEASE_CORRELATIONS.values()}
+        return tuple(sorted(codes))
+
+    @property
+    def symptoms(self) -> tuple[str, ...]:
+        """All unique symptoms across all diseases (derived from DISEASE_CORRELATIONS)."""
+        all_symptoms = set()
+        for data in DISEASE_CORRELATIONS.values():
+            all_symptoms.update(data["symptoms"])
+        return tuple(sorted(all_symptoms))
+
+    @property
+    def generic_drugs(self) -> tuple[str, ...]:
+        """All unique medications (derived from DISEASE_CORRELATIONS)."""
+        all_meds = set()
+        for data in DISEASE_CORRELATIONS.values():
+            all_meds.update(data["medications"])
+        return tuple(sorted(all_meds))
 
     medical_specialties: ElementsType[str] = (
         "Cardiology",
@@ -303,176 +123,435 @@ class HealthcareProvider(BaseProvider):
         "Post-Anesthesia Care Unit (PACU)",
     )
 
-    generic_drugs: ElementsType[str] = (
-        "Atorvastatin", "Levothyroxine", "Lisinopril", "Metformin", "Amlodipine",
-        "Metoprolol", "Omeprazole", "Simvastatin", "Losartan", "Gabapentin",
-        "Hydrochlorothiazide", "Sertraline", "Amoxicillin", "Albuterol", "Citalopram",
-        "Pantoprazole", "Trazodone", "Fluoxetine", "Tramadol", "Clopidogrel",
-        "Rosuvastatin", "Escitalopram", "Montelukast", "Furosemide", "Bupropion",
-        "Prednisone", "Meloxicam", "Dextroamphetamine", "Duloxetine", "Carvedilol",
-        "Ibuprofen", "Acetaminophen", "Aspirin", "Naproxen", "Warfarin",
-        "Apixaban", "Rivaroxaban", "Dabigatran", "Insulin Glargine", "Insulin Aspart",
-        "Insulin Lispro", "Insulin Detemir", "Empagliflozin", "Dapagliflozin", "Sitagliptin",
-        "Glimepiride", "Pioglitazone", "Acarbose", "Repaglinide", "Nateglinide",
-        "Enalapril", "Quinapril", "Ramipril", "Benazepril", "Fosinopril",
-        "Candesartan", "Valsartan", "Irbesartan", "Olmesartan", "Telmisartan",
-        "Diltiazem", "Verapamil", "Nifedipine", "Felodipine", "Isradipine",
-        "Bisoprolol", "Atenolol", "Propranolol", "Nadolol", "Labetalol",
-        "Clonidine", "Hydralazine", "Prazosin", "Doxazosin", "Terazosin",
-        "Spironolactone", "Triamterene", "Amiloride", "Chlorthalidone", "Indapamide",
-        "Amiodarone", "Digoxin", "Flecainide", "Propafenone", "Sotalol",
-        "Nitrofurantoin", "Ciprofloxacin", "Levofloxacin", "Azithromycin", "Clarithromycin",
-        "Doxycycline", "Cephalexin", "Cefuroxime", "Ceftriaxone", "Clindamycin",
-        "Metronidazole", "Vancomycin", "Linezolid", "Acyclovir", "Valacyclovir",
-        "Oseltamivir", "Fluconazole", "Voriconazole", "Amphotericin", "Terbinafine",
-        "Venlafaxine", "Desvenlafaxine", "Mirtazapine", "Nortriptyline", "Amitriptyline",
-        "Paroxetine", "Fluvoxamine", "Clomipramine", "Lithium", "Valproate",
-        "Lamotrigine", "Carbamazepine", "Oxcarbazepine", "Topiramate", "Levetiracetam",
-        "Phenytoin", "Phenobarbital", "Primidone", "Lacosamide", "Zonisamide",
-        "Donepezil", "Rivastigmine", "Galantamine", "Memantine", "Levodopa",
-        "Carbidopa", "Pramipexole", "Ropinirole", "Rasagi" + "line", "Selegiline",
-        "Baclofen", "Tizanidine", "Cyclobenzaprine", "Carisoprodol", "Methocarbamol",
-        "Alprazolam", "Lorazepam", "Diazepam", "Clonazepam", "Temazepam",
-        "Zolpidem", "Eszopiclone", "Zaleplon", "Ramelteon", "Suvorexant",
-        "Methylphenidate", "Dexmethylphenidate", "Lisdexamfetamine", "Atomoxetine", "Guanfacine",
-        "Aripiprazole", "Quetiapine", "Olanzapine", "Risperidone", "Ziprasidone",
-        "Paliperidone", "Lurasidone", "Haloperidol", "Chlorpromazine", "Perphenazine",
-        "Tamsulosin", "Finasteride", "Dutasteride", "Sildenafil", "Tadalafil",
-        "Vardenafil", "Oxybutynin", "Tolterodine", "Solifenacin", "Darifenacin",
-        "Ferrous Sulfate", "Folic Acid", "Vitamin B12", "Vitamin D", "Calcium Carbonate",
-        "Ranitidine", "Famotidine", "Esomeprazole", "Lansoprazole", "Rabeprazole",
-        "Allopurinol", "Colchicine", "Probenecid", "Febuxostat", "Pegloticase",
-        "Celecoxib", "Diclofenac", "Indomethacin", "Ketorolac", "Piroxicam",
-        "Oxycodone", "Hydrocodone", "Morphine", "Fentanyl", "Codeine",
-        "Hydromorphone", "Oxymorphone", "Methadone", "Buprenorphine", "Naloxone",
-    )
-
     brand_drugs: ElementsType[str] = (
-        "Lipitor", "Synthroid", "Prinivil", "Glucophage", "Norvasc",
-        "Lopressor", "Prilosec", "Zocor", "Cozaar", "Neurontin",
-        "Zoloft", "Prozac", "Effexor", "Lexapro", "Cymbalta",
-        "Plavix", "Eliquis", "Ozempic", "Jardiance", "Farxiga",
-        "Crestor", "Januvia", "Victoza", "Trulicity", "Mounjaro",
-        "Zepbound", "Lantus", "Humalog", "NovoLog", "Toujeo",
-        "Basaglar", "Levemir", "Tresiba", "Zestril", "Altace",
-        "Vasotec", "Accupril", "Diovan", "Avapro", "Benicar",
-        "Micardis", "Coreg", "Tenormin", "Inderal", "Lopressor",
-        "Toprol XL", "Catapres", "Cardizem", "Procardia", "Norvasc",
-        "Plendil", "DynaCirc", "Aldactone", "Lasix", "Bumex",
-        "Demadex", "Zaroxolyn", "Cordarone", "Lanoxin", "Tambocor",
-        "Rythmol", "Betapace", "Xarelto", "Pradaxa", "Savaysa",
-        "Macrobid", "Cipro", "Levaquin", "Zithromax", "Biaxin",
-        "Vibramycin", "Keflex", "Ceftin", "Rocephin", "Cleocin",
-        "Flagyl", "Vancocin", "Zyvox", "Zovirax", "Valtrex",
-        "Tamiflu", "Diflucan", "Vfend", "AmBisome", "Lamisil",
-        "Wellbutrin", "Pristiq", "Remeron", "Pamelor", "Elavil",
-        "Paxil", "Luvox", "Anafranil", "Eskalith", "Depakote",
-        "Lamictal", "Tegretol", "Trileptal", "Topamax", "Keppra",
-        "Dilantin", "Luminal", "Mysoline", "Vimpat", "Zonegran",
-        "Aricept", "Exelon", "Razadyne", "Namenda", "Sinemet",
-        "Mirapex", "Requip", "Azilect", "Eldepryl", "Lioresal",
-        "Zanaflex", "Flexeril", "Soma", "Robaxin", "Xanax",
-        "Ativan", "Valium", "Klonopin", "Restoril", "Ambien",
-        "Lunesta", "Sonata", "Rozerem", "Belsomra", "Ritalin",
-        "Concerta", "Focalin", "Vyvanse", "Strattera", "Intuniv",
-        "Abilify", "Seroquel", "Zyprexa", "Risperdal", "Geodon",
-        "Invega", "Latuda", "Haldol", "Thorazine", "Trilafon",
-        "Flomax", "Proscar", "Avodart", "Viagra", "Cialis",
-        "Levitra", "Ditropan", "Detrol", "Vesicare", "Enablex",
-        "Slow-Fe", "Folvite", "Nascobal", "Rocaltrol", "Caltrate",
-        "Zantac", "Pepcid", "Nexium", "Prevacid", "Aciphex",
-        "Zyloprim", "Colcrys", "Benemid", "Uloric", "Krystexxa",
-        "Celebrex", "Voltaren", "Indocin", "Toradol", "Feldene",
-        "OxyContin", "Vicodin", "MS Contin", "Duragesic", "Tylenol #3",
-        "Dilaudid", "Opana", "Dolophine", "Suboxone", "Narcan",
-        "Advair", "Symbicort", "Spiriva", "Singulair", "Dulera",
-        "ProAir", "Ventolin", "Xopenex", "Flovent", "Pulmicort",
-        "Keytruda", "Opdivo", "Yervoy", "Tecentriq", "Imfinzi",
-        "Humira", "Enbrel", "Remicade", "Stelara", "Cosentyx",
-        "Dupixent", "Xolair", "Skyrizi", "Tapeze" + "ntis", "Entyvio",
-    )
-
-    symptoms: ElementsType[str] = (
-        "Fever", "Cough", "Shortness of Breath", "Headache", "Fatigue",
-        "Abdominal Pain", "Nausea", "Vomiting", "Diarrhea", "Chest Pain",
-        "Dizziness", "Rash", "Sore Throat", "Joint Pain", "Back Pain",
-        "Coughing Blood", "Weight Loss", "Swelling", "Blurred Vision", "Palpitations",
-        "Chills", "Sweating", "Muscle Aches", "Weakness", "Numbness",
-        "Tingling", "Confusion", "Memory Loss", "Anxiety", "Depression",
-        "Insomnia", "Tremor", "Seizures", "Loss of Consciousness", "Fainting",
-        "Rapid Heartbeat", "Irregular Heartbeat", "Slow Heartbeat", "High Blood Pressure", "Low Blood Pressure",
-        "Difficulty Swallowing", "Heartburn", "Bloody Stool", "Black Stool", "Constipation",
-        "Bloating", "Gas", "Belching", "Loss of Appetite", "Increased Appetite",
-        "Frequent Urination", "Painful Urination", "Blood in Urine", "Cloudy Urine", "Dark Urine",
-        "Incontinence", "Impotence", "Painful Intercourse", "Irregular Periods", "Heavy Periods",
-        "Vaginal Discharge", "Vaginal Bleeding", "Hot Flashes", "Night Sweats", "Breast Tenderness",
-        "Breast Lump", "Nipple Discharge", "Testicular Pain", "Testicular Swelling", "Scrotal Mass",
-        "Itching", "Hives", "Eczema", "Dry Skin", "Oily Skin",
-        "Hair Loss", "Brittle Nails", "Yellow Nails", "Nail Fungus", "Dandruff",
-        "Red Eyes", "Watery Eyes", "Double Vision", "Light Sensitivity", "Eye Pain",
-        "Ear Pain", "Ear Discharge", "Ringing in Ears", "Hearing Loss", "Balance Problems",
-        "Runny Nose", "Stuffy Nose", "Nosebleeds", "Sneezing", "Postnasal Drip",
-        "Loss of Smell", "Loss of Taste", "Bad Breath", "Dry Mouth", "Mouth Sores",
-        "Bleeding Gums", "Tooth Pain", "Jaw Pain", "Difficulty Chewing", "Difficulty Breathing",
-        "Wheezing", "Rapid Breathing", "Shallow Breathing", "Snoring", "Sleep Apnea",
+        "Lipitor",
+        "Synthroid",
+        "Prinivil",
+        "Glucophage",
+        "Norvasc",
+        "Lopressor",
+        "Prilosec",
+        "Zocor",
+        "Cozaar",
+        "Neurontin",
+        "Zoloft",
+        "Prozac",
+        "Effexor",
+        "Lexapro",
+        "Cymbalta",
+        "Plavix",
+        "Eliquis",
+        "Ozempic",
+        "Jardiance",
+        "Farxiga",
+        "Crestor",
+        "Januvia",
+        "Victoza",
+        "Trulicity",
+        "Mounjaro",
+        "Zepbound",
+        "Lantus",
+        "Humalog",
+        "NovoLog",
+        "Toujeo",
+        "Basaglar",
+        "Levemir",
+        "Tresiba",
+        "Zestril",
+        "Altace",
+        "Vasotec",
+        "Accupril",
+        "Diovan",
+        "Avapro",
+        "Benicar",
+        "Micardis",
+        "Coreg",
+        "Tenormin",
+        "Inderal",
+        "Lopressor",
+        "Toprol XL",
+        "Catapres",
+        "Cardizem",
+        "Procardia",
+        "Norvasc",
+        "Plendil",
+        "DynaCirc",
+        "Aldactone",
+        "Lasix",
+        "Bumex",
+        "Demadex",
+        "Zaroxolyn",
+        "Cordarone",
+        "Lanoxin",
+        "Tambocor",
+        "Rythmol",
+        "Betapace",
+        "Xarelto",
+        "Pradaxa",
+        "Savaysa",
+        "Macrobid",
+        "Cipro",
+        "Levaquin",
+        "Zithromax",
+        "Biaxin",
+        "Vibramycin",
+        "Keflex",
+        "Ceftin",
+        "Rocephin",
+        "Cleocin",
+        "Flagyl",
+        "Vancocin",
+        "Zyvox",
+        "Zovirax",
+        "Valtrex",
+        "Tamiflu",
+        "Diflucan",
+        "Vfend",
+        "AmBisome",
+        "Lamisil",
+        "Wellbutrin",
+        "Pristiq",
+        "Remeron",
+        "Pamelor",
+        "Elavil",
+        "Paxil",
+        "Luvox",
+        "Anafranil",
+        "Eskalith",
+        "Depakote",
+        "Lamictal",
+        "Tegretol",
+        "Trileptal",
+        "Topamax",
+        "Keppra",
+        "Dilantin",
+        "Luminal",
+        "Mysoline",
+        "Vimpat",
+        "Zonegran",
+        "Aricept",
+        "Exelon",
+        "Razadyne",
+        "Namenda",
+        "Sinemet",
+        "Mirapex",
+        "Requip",
+        "Azilect",
+        "Eldepryl",
+        "Lioresal",
+        "Zanaflex",
+        "Flexeril",
+        "Soma",
+        "Robaxin",
+        "Xanax",
+        "Ativan",
+        "Valium",
+        "Klonopin",
+        "Restoril",
+        "Ambien",
+        "Lunesta",
+        "Sonata",
+        "Rozerem",
+        "Belsomra",
+        "Ritalin",
+        "Concerta",
+        "Focalin",
+        "Vyvanse",
+        "Strattera",
+        "Intuniv",
+        "Abilify",
+        "Seroquel",
+        "Zyprexa",
+        "Risperdal",
+        "Geodon",
+        "Invega",
+        "Latuda",
+        "Haldol",
+        "Thorazine",
+        "Trilafon",
+        "Flomax",
+        "Proscar",
+        "Avodart",
+        "Viagra",
+        "Cialis",
+        "Levitra",
+        "Ditropan",
+        "Detrol",
+        "Vesicare",
+        "Enablex",
+        "Slow-Fe",
+        "Folvite",
+        "Nascobal",
+        "Rocaltrol",
+        "Caltrate",
+        "Zantac",
+        "Pepcid",
+        "Nexium",
+        "Prevacid",
+        "Aciphex",
+        "Zyloprim",
+        "Colcrys",
+        "Benemid",
+        "Uloric",
+        "Krystexxa",
+        "Celebrex",
+        "Voltaren",
+        "Indocin",
+        "Toradol",
+        "Feldene",
+        "OxyContin",
+        "Vicodin",
+        "MS Contin",
+        "Duragesic",
+        "Tylenol #3",
+        "Dilaudid",
+        "Opana",
+        "Dolophine",
+        "Suboxone",
+        "Narcan",
+        "Advair",
+        "Symbicort",
+        "Spiriva",
+        "Singulair",
+        "Dulera",
+        "ProAir",
+        "Ventolin",
+        "Xopenex",
+        "Flovent",
+        "Pulmicort",
+        "Keytruda",
+        "Opdivo",
+        "Yervoy",
+        "Tecentriq",
+        "Imfinzi",
+        "Humira",
+        "Enbrel",
+        "Remicade",
+        "Stelara",
+        "Cosentyx",
+        "Dupixent",
+        "Xolair",
+        "Skyrizi",
+        "Tapeze" + "ntis",
+        "Entyvio",
     )
 
     blood_types: ElementsType[str] = (
-        "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-",
+        "A+",
+        "A-",
+        "B+",
+        "B-",
+        "AB+",
+        "AB-",
+        "O+",
+        "O-",
     )
 
     allergies: ElementsType[str] = (
-        "Penicillin", "Peanuts", "Tree Nuts", "Shellfish", "Fish",
-        "Milk", "Eggs", "Soy", "Wheat", "Sesame",
-        "Latex", "Bee Sting", "Pollen", "Dust Mites", "Pet Dander",
-        "Sulfa Drugs", "Aspirin", "Ibuprofen", "Codeine", "Morphine",
-        "Contrast Dye", "Anesthesia", "Nickel", "Adhesive", "Fragrance",
-        "Insect Bites", "Mold", "Cockroaches", "Grass", "Ragweed",
-        "Corn", "Mustard", "Celery", "Lupin", "Sulfites",
-        "MSG", "Red Dye", "Gluten", "Lactose", "Fructose",
+        "Penicillin",
+        "Peanuts",
+        "Tree Nuts",
+        "Shellfish",
+        "Fish",
+        "Milk",
+        "Eggs",
+        "Soy",
+        "Wheat",
+        "Sesame",
+        "Latex",
+        "Bee Sting",
+        "Pollen",
+        "Dust Mites",
+        "Pet Dander",
+        "Sulfa Drugs",
+        "Aspirin",
+        "Ibuprofen",
+        "Codeine",
+        "Morphine",
+        "Contrast Dye",
+        "Anesthesia",
+        "Nickel",
+        "Adhesive",
+        "Fragrance",
+        "Insect Bites",
+        "Mold",
+        "Cockroaches",
+        "Grass",
+        "Ragweed",
+        "Corn",
+        "Mustard",
+        "Celery",
+        "Lupin",
+        "Sulfites",
+        "MSG",
+        "Red Dye",
+        "Gluten",
+        "Lactose",
+        "Fructose",
     )
 
     medical_procedures: ElementsType[str] = (
-        "Blood Test", "MRI Scan", "CT Scan", "X-Ray", "Ultrasound",
-        "Colonoscopy", "Endoscopy", "Appendectomy", "Cholecystectomy", "C-Section",
-        "Hysterectomy", "Knee Replacement", "Hip Replacement", "Cataract Surgery", "Biopsy",
-        "Physical Therapy Session", "Electrocardiogram (ECG)", "Echocardiogram", "Vaccination", "Wound Debridement",
-        "Angioplasty", "Cardiac Catheterization", "Coronary Artery Bypass Graft", "Pacemaker Insertion", "Defibrillator Implantation",
-        "Ablation", "Tonsillectomy", "Adenoidectomy", "Mastectomy", "Lumpectomy",
-        "Prostatectomy", "Nephrectomy", "Splenectomy", "Gastrectomy", "Colectomy",
-        "Ileostomy", "Colostomy", "Hernia Repair", "Gallbladder Removal", "Liver Biopsy",
-        "Kidney Biopsy", "Bone Marrow Biopsy", "Lymph Node Biopsy", "Skin Biopsy", "Bronchoscopy",
-        "Thoracentesis", "Paracentesis", "Lumbar Puncture", "Joint Aspiration", "Epidural Injection",
-        "Nerve Block", "Trigger Point Injection", "Joint Injection", "Botox Injection", "Filler Injection",
-        "Laser Hair Removal", "Chemical Peel", "Microdermabrasion", "Dermabrasion", "Skin Tag Removal",
-        "Mole Removal", "Wart Removal", "Cryotherapy", "Electrocautery", "Excision",
-        "Incision and Drainage", "Suturing", "Stapling", "Skin Graft", "Flap Surgery",
-        "LASIK Surgery", "Glaucoma Surgery", "Retinal Detachment Repair", "Corneal Transplant", "Vitrectomy",
-        "Tympanoplasty", "Stapedectomy", "Cochlear Implant", "Rhinoplasty", "Septoplasty",
-        "Sinus Surgery", "Thyroidectomy", "Parathyroidectomy", "Adrenalectomy", "Pancreatectomy",
-        "Whipple Procedure", "Liver Resection", "Liver Transplant", "Kidney Transplant", "Heart Transplant",
-        "Lung Transplant", "Pancreas Transplant", "Bone Marrow Transplant", "Stem Cell Transplant", "Dialysis",
-        "Hemodialysis", "Peritoneal Dialysis", "Plasmapheresis", "IVIG Infusion", "Chemotherapy",
-        "Radiation Therapy", "Immunotherapy", "Hormone Therapy", "Targeted Therapy", "CAR T-Cell Therapy",
+        "Blood Test",
+        "MRI Scan",
+        "CT Scan",
+        "X-Ray",
+        "Ultrasound",
+        "Colonoscopy",
+        "Endoscopy",
+        "Appendectomy",
+        "Cholecystectomy",
+        "C-Section",
+        "Hysterectomy",
+        "Knee Replacement",
+        "Hip Replacement",
+        "Cataract Surgery",
+        "Biopsy",
+        "Physical Therapy Session",
+        "Electrocardiogram (ECG)",
+        "Echocardiogram",
+        "Vaccination",
+        "Wound Debridement",
+        "Angioplasty",
+        "Cardiac Catheterization",
+        "Coronary Artery Bypass Graft",
+        "Pacemaker Insertion",
+        "Defibrillator Implantation",
+        "Ablation",
+        "Tonsillectomy",
+        "Adenoidectomy",
+        "Mastectomy",
+        "Lumpectomy",
+        "Prostatectomy",
+        "Nephrectomy",
+        "Splenectomy",
+        "Gastrectomy",
+        "Colectomy",
+        "Ileostomy",
+        "Colostomy",
+        "Hernia Repair",
+        "Gallbladder Removal",
+        "Liver Biopsy",
+        "Kidney Biopsy",
+        "Bone Marrow Biopsy",
+        "Lymph Node Biopsy",
+        "Skin Biopsy",
+        "Bronchoscopy",
+        "Thoracentesis",
+        "Paracentesis",
+        "Lumbar Puncture",
+        "Joint Aspiration",
+        "Epidural Injection",
+        "Nerve Block",
+        "Trigger Point Injection",
+        "Joint Injection",
+        "Botox Injection",
+        "Filler Injection",
+        "Laser Hair Removal",
+        "Chemical Peel",
+        "Microdermabrasion",
+        "Dermabrasion",
+        "Skin Tag Removal",
+        "Mole Removal",
+        "Wart Removal",
+        "Cryotherapy",
+        "Electrocautery",
+        "Excision",
+        "Incision and Drainage",
+        "Suturing",
+        "Stapling",
+        "Skin Graft",
+        "Flap Surgery",
+        "LASIK Surgery",
+        "Glaucoma Surgery",
+        "Retinal Detachment Repair",
+        "Corneal Transplant",
+        "Vitrectomy",
+        "Tympanoplasty",
+        "Stapedectomy",
+        "Cochlear Implant",
+        "Rhinoplasty",
+        "Septoplasty",
+        "Sinus Surgery",
+        "Thyroidectomy",
+        "Parathyroidectomy",
+        "Adrenalectomy",
+        "Pancreatectomy",
+        "Whipple Procedure",
+        "Liver Resection",
+        "Liver Transplant",
+        "Kidney Transplant",
+        "Heart Transplant",
+        "Lung Transplant",
+        "Pancreas Transplant",
+        "Bone Marrow Transplant",
+        "Stem Cell Transplant",
+        "Dialysis",
+        "Hemodialysis",
+        "Peritoneal Dialysis",
+        "Plasmapheresis",
+        "IVIG Infusion",
+        "Chemotherapy",
+        "Radiation Therapy",
+        "Immunotherapy",
+        "Hormone Therapy",
+        "Targeted Therapy",
+        "CAR T-Cell Therapy",
     )
 
     insurance_plans: ElementsType[str] = (
-        "PPO", "HMO", "EPO", "POS", "Medicare",
-        "Medicaid", "High-Deductible Health Plan (HDHP)", "Private Insurance", "Employer-Sponsored", "Medicare Advantage",
-        "TRICARE", "Veterans Affairs (VA)", "CHIP", "ACA Marketplace", "Medigap",
-        "Medicare Part A", "Medicare Part B", "Medicare Part C", "Medicare Part D", "Dental Insurance",
-        "Vision Insurance", "Long-Term Care Insurance", "Disability Insurance", "Critical Illness Insurance", "Catastrophic Insurance",
+        "PPO",
+        "HMO",
+        "EPO",
+        "POS",
+        "Medicare",
+        "Medicaid",
+        "High-Deductible Health Plan (HDHP)",
+        "Private Insurance",
+        "Employer-Sponsored",
+        "Medicare Advantage",
+        "TRICARE",
+        "Veterans Affairs (VA)",
+        "CHIP",
+        "ACA Marketplace",
+        "Medigap",
+        "Medicare Part A",
+        "Medicare Part B",
+        "Medicare Part C",
+        "Medicare Part D",
+        "Dental Insurance",
+        "Vision Insurance",
+        "Long-Term Care Insurance",
+        "Disability Insurance",
+        "Critical Illness Insurance",
+        "Catastrophic Insurance",
     )
 
     vital_signs: ElementsType[str] = (
-        "Blood Pressure", "Heart Rate", "Respiratory Rate", "Body Temperature", "Oxygen Saturation",
-        "Body Mass Index (BMI)", "Blood Glucose", "Pain Level", "Pulse", "Peak Flow",
+        "Blood Pressure",
+        "Heart Rate",
+        "Respiratory Rate",
+        "Body Temperature",
+        "Oxygen Saturation",
+        "Body Mass Index (BMI)",
+        "Blood Glucose",
+        "Pain Level",
+        "Pulse",
+        "Peak Flow",
     )
 
     def disease(self) -> str:
+        """Return a random disease name."""
         return self.random_element(self.diseases)
 
-    def icd10_code(self) -> str:
+    def icd10_code(self, disease: str | None = None) -> str:
+        """Return an ICD-10 code.
+
+        Args:
+            disease: Optional disease name. If provided, returns the correct ICD-10 code for that disease.
+                    If None, returns a random ICD-10 code.
+        """
+        if disease and disease in DISEASE_CORRELATIONS:
+            return DISEASE_CORRELATIONS[disease]["icd10"]
         return self.random_element(self.icd10_codes)
 
     def medical_specialty(self) -> str:
@@ -487,8 +566,111 @@ class HealthcareProvider(BaseProvider):
     def brand_drug(self) -> str:
         return self.random_element(self.brand_drugs)
 
-    def symptom(self) -> str:
+    def symptom(self, disease: str | None = None) -> str:
+        """Return a symptom.
+
+        Args:
+            disease: Optional disease name. If provided, returns a symptom associated with that disease.
+                    If None, returns a random symptom.
+        """
+        if disease and disease in DISEASE_CORRELATIONS:
+            return self.random_element(DISEASE_CORRELATIONS[disease]["symptoms"])
         return self.random_element(self.symptoms)
+
+    def disease_symptoms(self, disease: str, count: int = 3) -> list[str]:
+        """Return multiple symptoms for a specific disease.
+
+        Args:
+            disease: Disease name to get symptoms for.
+            count: Number of symptoms to return (1-5). Defaults to 3.
+                  Will be capped at the number of available symptoms for the disease.
+
+        Returns:
+            List of symptom strings for the disease.
+
+        Raises:
+            ValueError: If disease is not found in correlations.
+        """
+        if disease not in DISEASE_CORRELATIONS:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+
+        disease_symptoms = DISEASE_CORRELATIONS[disease]["symptoms"]
+        actual_count = min(count, len(disease_symptoms))
+        return self.random_elements(disease_symptoms, length=actual_count, unique=True)
+
+    def medication(self, disease: str | None = None) -> str:
+        """Return a medication.
+
+        Args:
+            disease: Optional disease name. If provided, returns a medication for that disease.
+                    If None, returns a random medication.
+        """
+        if disease and disease in DISEASE_CORRELATIONS:
+            return self.random_element(DISEASE_CORRELATIONS[disease]["medications"])
+        return self.random_element(self.generic_drugs)
+
+    def medications(self, disease: str, count: int = 2) -> list[str]:
+        """Return multiple medications for a specific disease.
+
+        Args:
+            disease: Disease name to get medications for.
+            count: Number of medications to return. Defaults to 2.
+                  Will be capped at the number of available medications for the disease.
+
+        Returns:
+            List of medication strings for the disease.
+
+        Raises:
+            ValueError: If disease is not found in correlations.
+        """
+        if disease not in DISEASE_CORRELATIONS:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+
+        disease_meds = DISEASE_CORRELATIONS[disease]["medications"]
+        actual_count = min(count, len(disease_meds))
+        return self.random_elements(disease_meds, length=actual_count, unique=True)
+
+    def diseases_by_symptom(self, symptom: str) -> list[str]:
+        """Return all diseases that have a specific symptom.
+
+        Args:
+            symptom: Symptom to search for.
+
+        Returns:
+            List of disease names that include this symptom.
+        """
+        return [disease_name for disease_name, data in DISEASE_CORRELATIONS.items() if symptom in data["symptoms"]]
+
+    def patient_scenario(self, disease: str | None = None) -> dict[str, Any]:
+        """Generate a complete patient scenario with correlated clinical data.
+
+        Args:
+            disease: Optional specific disease. If None, a random disease is selected.
+
+        Returns:
+            Dictionary containing:
+                - disease: The disease name
+                - icd10: The correct ICD-10 code
+                - symptoms: List of 3-5 correlated symptoms
+                - medications: List of 2-3 correlated medications
+                - specialty: The primary medical specialty
+        """
+        if disease is None:
+            disease = self.disease()
+        elif disease not in DISEASE_CORRELATIONS:
+            raise ValueError(f"Disease '{disease}' not found in diseases list")
+
+        disease_data = DISEASE_CORRELATIONS[disease]
+        num_symptoms = self.random_int(min=1, max=min(5, len(disease_data["symptoms"])))
+        num_meds = self.random_int(min=2, max=min(3, len(disease_data["medications"])))
+
+        return {
+            "disease": disease,
+            "icd10": disease_data["icd10"],
+            "symptoms": self.disease_symptoms(disease, count=num_symptoms),
+            "medications": self.medications(disease, count=num_meds),
+            "specialty": disease_data["specialty"],
+        }
 
     def blood_type(self) -> str:
         return self.random_element(self.blood_types)
@@ -506,4 +688,7 @@ class HealthcareProvider(BaseProvider):
         return self.random_element(self.vital_signs)
 
     def diagnosis(self) -> str:
-        return f"{self.disease()} ({self.icd10_code()})"
+        """Return a diagnosis with correlated disease and ICD-10 code."""
+        disease = self.disease()
+        icd10 = self.icd10_code(disease=disease)
+        return f"{disease} ({icd10})"
