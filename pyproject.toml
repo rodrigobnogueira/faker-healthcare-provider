@@ -7,6 +7,7 @@ name = "faker-healthcare-provider"
 version = "2.0.0"
 description = "Generate realistic healthcare test data in 6 languages (en, es, pt, zh, fr, de): 150+ diseases, 300+ ICD-10 codes, 400+ medications, procedures, and more"
 readme = "README.md"
+authors = [{name = "Rodrigo Nogueira", email = "rodrigobnogueira@gmail.com"}]
 license = {text = "MIT"}
 keywords = ["faker", "healthcare", "medical", "icd10", "fake-data", "testing", "multilingual", "i18n", "localization"]
 classifiers = [
