@@ -74,7 +74,6 @@ class TestOptimization:
 
     def test_locale_constants_have_correct_types(self) -> None:
         """Verify that locale constants are tuples."""
-        import importlib
 
         locales = ["en (base)", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
         constant_names = [
@@ -98,26 +97,50 @@ class TestOptimization:
                 assert len(const) > 0, f"{locale}.{const_name} is empty"
 
     def test_locale_memory_isolation(self) -> None:
-        """Verify that importing one locale doesn't load other locales into memory."""
+        """Verify that importing one locale doesn't load other locales' data into memory."""
+        import subprocess
         import sys
+
+        test_script = """
+import sys
+import importlib
+
+target_locale = sys.argv[1]
+
+if target_locale == "en":
+    provider_module = importlib.import_module("faker_healthcare.provider")
+else:
+    provider_module = importlib.import_module(f"faker_healthcare.{target_locale}")
+
+all_locales = ["en", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
+other_locales = [loc for loc in all_locales if loc != target_locale]
+
+for other_locale in other_locales:
+    if other_locale == "en":
+        continue
+
+    other_constants_module = f"faker_healthcare.{other_locale}.constants"
+    other_disease_correlations_module = f"faker_healthcare.{other_locale}.disease_correlations"
+
+    if other_constants_module in sys.modules:
+        print(f"FAIL: {other_locale} constants module loaded when importing {target_locale}")
+        sys.exit(1)
+
+    if other_disease_correlations_module in sys.modules:
+        print(f"FAIL: {other_locale} disease_correlations module loaded when importing {target_locale}")
+        sys.exit(1)
+
+print("OK")
+"""
 
         all_locales = ["en", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
 
         for target_locale in all_locales:
-            loaded_modules_before = set(sys.modules.keys())
+            result = subprocess.run(
+                [sys.executable, "-c", test_script, target_locale],
+                capture_output=True,
+                text=True,
+            )
 
-            if target_locale == "en":
-                importlib.import_module("faker_healthcare.provider")
-            else:
-                importlib.import_module(f"faker_healthcare.{target_locale}")
-
-            loaded_modules_after = set(sys.modules.keys())
-            newly_loaded = loaded_modules_after - loaded_modules_before
-
-            other_locales = [loc for loc in all_locales if loc != target_locale]
-
-            for other_locale in other_locales:
-                if other_locale == "en":
-                    continue
-                other_locale_modules = [mod for mod in newly_loaded if f"faker_healthcare.{other_locale}" in mod]
-                assert not other_locale_modules, f"Loading {target_locale} should not load {other_locale}, but found: {other_locale_modules}"
+            assert result.returncode == 0, f"Loading {target_locale} caused other locale data to load:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            assert "OK" in result.stdout, f"Unexpected output for {target_locale}: {result.stdout}"
