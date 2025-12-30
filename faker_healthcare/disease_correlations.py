@@ -10,16 +10,7 @@ MEDICAL DISCLAIMER: This data is for TESTING AND DEVELOPMENT PURPOSES ONLY.
 It should NOT be used for actual medical diagnosis, treatment, or healthcare decisions.
 """
 
-from typing import TypedDict
-
-
-class DiseaseData(TypedDict):
-    """Structure for disease correlation data."""
-
-    icd10: str
-    symptoms: list[str]
-    medications: list[str]
-    specialty: str
+from .types import DiseaseData
 
 
 DISEASE_CORRELATIONS: dict[str, DiseaseData] = {

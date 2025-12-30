@@ -7,7 +7,7 @@ AVISO MÉDICO: Esses dados são APENAS PARA FINS DE TESTE E DESENVOLVIMENTO.
 NÃO devem ser usados para diagnóstico médico real, tratamento ou decisões de saúde.
 """
 
-from ..disease_correlations import DiseaseData
+from ..types import DiseaseData
 
 
 CORRELACOES_DOENCAS: dict[str, DiseaseData] = {
