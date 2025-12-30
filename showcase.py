@@ -5,7 +5,10 @@ This script demonstrates the capabilities of the Healthcare Provider
 for generating realistic medical test data.
 """
 
+from typing import Type
+
 from faker import Faker
+from faker.providers import BaseProvider
 
 from faker_healthcare import HealthcareProvider
 
@@ -33,7 +36,7 @@ def showcase_basic_data() -> None:
 
     print_subheader("Medical Specialties")
     for _ in range(3):
-        print(f"  • {fake.medical_specialty()}")
+        print(f"  • {fake.disease_medical_specialty()}")
 
     print_subheader("Hospital Departments")
     for _ in range(3):
@@ -127,7 +130,7 @@ def showcase_patient_scenarios() -> None:
 
         print(f"\nDisease:      {scenario['disease']}")
         print(f"ICD-10 Code:  {scenario['icd10']}")
-        print(f"Specialty:    {scenario['specialty']}")
+        print(f"Specialty:    {scenario['medical_specialty']}")
 
         print("\nSymptoms:")
         for symptom in scenario["symptoms"]:
@@ -136,6 +139,31 @@ def showcase_patient_scenarios() -> None:
         print("\nMedications:")
         for med in scenario["medications"]:
             print(f"  • {med}")
+
+
+def get_provider_class(locale: str) -> Type[BaseProvider]:
+    """Get the provider class for a specific locale."""
+    if locale == "es_ES":
+        from faker_healthcare.es_ES import Provider as ESProvider
+
+        return ESProvider
+    if locale == "pt_BR":
+        from faker_healthcare.pt_BR import Provider as PTProvider
+
+        return PTProvider
+    if locale == "zh_CN":
+        from faker_healthcare.zh_CN import Provider as ZHProvider
+
+        return ZHProvider
+    if locale == "fr_FR":
+        from faker_healthcare.fr_FR import Provider as FRProvider
+
+        return FRProvider
+    if locale == "de_DE":
+        from faker_healthcare.de_DE import Provider as DEProvider
+
+        return DEProvider
+    return HealthcareProvider
 
 
 def showcase_multi_language() -> None:
@@ -153,11 +181,12 @@ def showcase_multi_language() -> None:
     for locale, lang_name, flag in languages:
         print_subheader(f"{flag} {lang_name} ({locale})")
         fake_lang = Faker(locale)
-        fake_lang.add_provider(HealthcareProvider)
+        provider_class = get_provider_class(locale)
+        fake_lang.add_provider(provider_class)
 
         print(f"\nDisease:    {fake_lang.disease()}")
         print(f"Diagnosis:  {fake_lang.diagnosis()}")
-        print(f"Specialty:  {fake_lang.medical_specialty()}")
+        print(f"Specialty:  {fake_lang.disease_medical_specialty()}")
         print(f"Insurance:  {fake_lang.insurance_plan()}")
 
 

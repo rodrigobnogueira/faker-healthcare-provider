@@ -117,6 +117,10 @@ other_locales = [loc for loc in all_locales if loc != target_locale]
 
 for other_locale in other_locales:
     if other_locale == "en":
+        # Check if English disease_correlations was loaded when importing non-English locale
+        if target_locale != "en" and "faker_healthcare.disease_correlations" in sys.modules:
+            print(f"FAIL: English disease_correlations module loaded when importing {target_locale}")
+            sys.exit(1)
         continue
 
     other_constants_module = f"faker_healthcare.{other_locale}.constants"

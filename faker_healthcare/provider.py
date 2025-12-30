@@ -11,7 +11,7 @@ from .constants import (
     MEDICAL_PROCEDURES,
     VITAL_SIGNS,
 )
-from .disease_correlations import DISEASE_CORRELATIONS
+from .types import DiseaseData
 
 
 class PatientScenario(TypedDict):
@@ -32,22 +32,37 @@ class HealthcareProvider(BaseProvider):
     It should NOT be used for actual medical diagnosis, treatment, or healthcare decisions.
     """
 
+    _disease_correlations: dict[str, DiseaseData] | None = None
+
+    @property
+    def disease_correlations(self) -> dict[str, DiseaseData]:
+        """Lazy-loaded disease correlations data (locale-specific)."""
+        if self._disease_correlations is None:
+            self._disease_correlations = self._load_disease_correlations()
+        return self._disease_correlations
+
+    def _load_disease_correlations(self) -> dict[str, DiseaseData]:
+        """Load disease correlations. Override in locale providers."""
+        from .disease_correlations import DISEASE_CORRELATIONS
+
+        return DISEASE_CORRELATIONS
+
     @property
     def diseases(self) -> tuple[str, ...]:
         """All disease names (derived from DISEASE_CORRELATIONS)."""
-        return tuple(DISEASE_CORRELATIONS.keys())
+        return tuple(self.disease_correlations.keys())
 
     @property
     def icd10_codes(self) -> tuple[str, ...]:
         """All ICD-10 codes (derived from DISEASE_CORRELATIONS)."""
-        codes = {data["icd10"] for data in DISEASE_CORRELATIONS.values()}
+        codes = {data["icd10"] for data in self.disease_correlations.values()}
         return tuple(sorted(codes))
 
     @property
     def symptoms(self) -> tuple[str, ...]:
         """All unique symptoms across all diseases (derived from DISEASE_CORRELATIONS)."""
         all_symptoms: set[str] = set()
-        for data in DISEASE_CORRELATIONS.values():
+        for data in self.disease_correlations.values():
             all_symptoms.update(data["symptoms"])
         return tuple(sorted(all_symptoms))
 
@@ -55,14 +70,14 @@ class HealthcareProvider(BaseProvider):
     def generic_drugs(self) -> tuple[str, ...]:
         """All unique medications (derived from DISEASE_CORRELATIONS)."""
         all_meds: set[str] = set()
-        for data in DISEASE_CORRELATIONS.values():
+        for data in self.disease_correlations.values():
             all_meds.update(data["medications"])
         return tuple(sorted(all_meds))
 
     @property
     def medical_specialties(self) -> tuple[str, ...]:
         """All unique medical specialties (derived from DISEASE_CORRELATIONS)."""
-        specialties = {data["medical_specialty"] for data in DISEASE_CORRELATIONS.values()}
+        specialties = {data["medical_specialty"] for data in self.disease_correlations.values()}
         return tuple(sorted(specialties))
 
     hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
@@ -90,8 +105,8 @@ class HealthcareProvider(BaseProvider):
             disease: Optional disease name. If provided, returns the correct ICD-10 code for that disease.
                     If None, returns a random ICD-10 code.
         """
-        if disease and disease in DISEASE_CORRELATIONS:
-            return DISEASE_CORRELATIONS[disease]["icd10"]
+        if disease and disease in self.disease_correlations:
+            return self.disease_correlations[disease]["icd10"]
         return self.random_element(self.icd10_codes)
 
     def disease_medical_specialty(self) -> str:
@@ -113,8 +128,8 @@ class HealthcareProvider(BaseProvider):
             disease: Optional disease name. If provided, returns a symptom associated with that disease.
                     If None, returns a random symptom.
         """
-        if disease and disease in DISEASE_CORRELATIONS:
-            return self.random_element(DISEASE_CORRELATIONS[disease]["symptoms"])
+        if disease and disease in self.disease_correlations:
+            return self.random_element(self.disease_correlations[disease]["symptoms"])
         return self.random_element(self.symptoms)
 
     def disease_symptoms(self, disease: str, count: int = 3) -> list[str]:
@@ -131,10 +146,10 @@ class HealthcareProvider(BaseProvider):
         Raises:
             ValueError: If disease is not found in correlations.
         """
-        if disease not in DISEASE_CORRELATIONS:
+        if disease not in self.disease_correlations:
             raise ValueError(f"Disease '{disease}' not found in disease correlations")
 
-        disease_symptoms = DISEASE_CORRELATIONS[disease]["symptoms"]
+        disease_symptoms = self.disease_correlations[disease]["symptoms"]
         actual_count = min(count, len(disease_symptoms))
         return list(self.random_elements(disease_symptoms, length=actual_count, unique=True))
 
@@ -145,8 +160,8 @@ class HealthcareProvider(BaseProvider):
             disease: Optional disease name. If provided, returns a medication for that disease.
                     If None, returns a random medication.
         """
-        if disease and disease in DISEASE_CORRELATIONS:
-            return self.random_element(DISEASE_CORRELATIONS[disease]["medications"])
+        if disease and disease in self.disease_correlations:
+            return self.random_element(self.disease_correlations[disease]["medications"])
         return self.random_element(self.generic_drugs)
 
     def medications(self, disease: str, count: int = 2) -> list[str]:
@@ -163,10 +178,10 @@ class HealthcareProvider(BaseProvider):
         Raises:
             ValueError: If disease is not found in correlations.
         """
-        if disease not in DISEASE_CORRELATIONS:
+        if disease not in self.disease_correlations:
             raise ValueError(f"Disease '{disease}' not found in disease correlations")
 
-        disease_meds = DISEASE_CORRELATIONS[disease]["medications"]
+        disease_meds = self.disease_correlations[disease]["medications"]
         actual_count = min(count, len(disease_meds))
         return list(self.random_elements(disease_meds, length=actual_count, unique=True))
 
@@ -179,7 +194,7 @@ class HealthcareProvider(BaseProvider):
         Returns:
             List of disease names that include this symptom.
         """
-        return [disease_name for disease_name, data in DISEASE_CORRELATIONS.items() if symptom in data["symptoms"]]
+        return [disease_name for disease_name, data in self.disease_correlations.items() if symptom in data["symptoms"]]
 
     def patient_scenario(self, disease: str | None = None) -> PatientScenario:
         """Generate a complete patient scenario with correlated clinical data.
@@ -197,10 +212,10 @@ class HealthcareProvider(BaseProvider):
         """
         if disease is None:
             disease = self.disease()
-        elif disease not in DISEASE_CORRELATIONS:
+        elif disease not in self.disease_correlations:
             raise ValueError(f"Disease '{disease}' not found in diseases list")
 
-        disease_data = DISEASE_CORRELATIONS[disease]
+        disease_data = self.disease_correlations[disease]
         num_symptoms = self.random_int(min=1, max=min(5, len(disease_data["symptoms"])))
         num_meds = self.random_int(min=2, max=min(3, len(disease_data["medications"])))
 

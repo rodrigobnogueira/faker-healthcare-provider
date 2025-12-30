@@ -1,6 +1,6 @@
 """
 Dados de Correlações de Doenças
-Este módulo contém o dicionário CORRELACOES_DOENCAS mapeando todas as 150 doenças
+Este módulo contém o dicionário DISEASE_CORRELATIONS mapeando todas as 150 doenças
 para seus sintomas, códigos CID-10, medicamentos e especialidades primárias.
 Dados obtidos da classificação CID-10 da OMS.
 AVISO MÉDICO: Esses dados são APENAS PARA FINS DE TESTE E DESENVOLVIMENTO.
@@ -10,7 +10,7 @@ NÃO devem ser usados para diagnóstico médico real, tratamento ou decisões de
 from ..types import DiseaseData
 
 
-CORRELACOES_DOENCAS: dict[str, DiseaseData] = {
+DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Diabetes mellitus tipo 2": {
         "icd10": "E11.9",
         "symptoms": ["Micção frequente", "Aumento do apetite", "Fadiga", "Visão turva", "Perda de peso"],
