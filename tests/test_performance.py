@@ -101,18 +101,23 @@ class TestOptimization:
         """Verify that importing one locale doesn't load other locales into memory."""
         import sys
 
-        locales_to_test = ["de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
+        all_locales = ["en", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
 
-        for target_locale in locales_to_test:
+        for target_locale in all_locales:
             loaded_modules_before = set(sys.modules.keys())
 
-            importlib.import_module(f"faker_healthcare.{target_locale}")
+            if target_locale == "en":
+                importlib.import_module("faker_healthcare.provider")
+            else:
+                importlib.import_module(f"faker_healthcare.{target_locale}")
 
             loaded_modules_after = set(sys.modules.keys())
             newly_loaded = loaded_modules_after - loaded_modules_before
 
-            other_locales = [loc for loc in locales_to_test if loc != target_locale]
+            other_locales = [loc for loc in all_locales if loc != target_locale]
 
             for other_locale in other_locales:
+                if other_locale == "en":
+                    continue
                 other_locale_modules = [mod for mod in newly_loaded if f"faker_healthcare.{other_locale}" in mod]
                 assert not other_locale_modules, f"Loading {target_locale} should not load {other_locale}, but found: {other_locale_modules}"
