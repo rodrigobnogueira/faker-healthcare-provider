@@ -10,6 +10,8 @@ Note: Full locale-specific disease data isolation would require dynamic locale-b
 DISEASE_CORRELATIONS loading, which is beyond the current refactoring scope.
 """
 
+import importlib
+
 from faker_healthcare import HealthcareProvider
 
 
@@ -94,3 +96,23 @@ class TestOptimization:
                 const = getattr(constants_module, const_name)
                 assert isinstance(const, tuple), f"{locale}.{const_name} is not a tuple"
                 assert len(const) > 0, f"{locale}.{const_name} is empty"
+
+    def test_locale_memory_isolation(self) -> None:
+        """Verify that importing one locale doesn't load other locales into memory."""
+        import sys
+
+        locales_to_test = ["de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
+
+        for target_locale in locales_to_test:
+            loaded_modules_before = set(sys.modules.keys())
+
+            importlib.import_module(f"faker_healthcare.{target_locale}")
+
+            loaded_modules_after = set(sys.modules.keys())
+            newly_loaded = loaded_modules_after - loaded_modules_before
+
+            other_locales = [loc for loc in locales_to_test if loc != target_locale]
+
+            for other_locale in other_locales:
+                other_locale_modules = [mod for mod in newly_loaded if f"faker_healthcare.{other_locale}" in mod]
+                assert not other_locale_modules, f"Loading {target_locale} should not load {other_locale}, but found: {other_locale_modules}"
