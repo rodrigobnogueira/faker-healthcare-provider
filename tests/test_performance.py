@@ -18,18 +18,30 @@ class TestOptimization:
 
     def test_no_redundant_data_in_locale_providers(self) -> None:
         """Verify that locale providers don't have redundant disease-derived data as class attributes."""
+        from faker_healthcare.de_DE import Provider as DEProvider
         from faker_healthcare.es_ES import Provider as ESProvider
+        from faker_healthcare.fr_FR import Provider as FRProvider
         from faker_healthcare.pt_BR import Provider as PTProvider
+        from faker_healthcare.zh_CN import Provider as ZHProvider
 
-        # These should NOT be class attributes (they're properties in base class)
+        locale_providers = {
+            "de_DE": DEProvider,
+            "es_ES": ESProvider,
+            "fr_FR": FRProvider,
+            "pt_BR": PTProvider,
+            "zh_CN": ZHProvider,
+        }
+
         redundant_attrs = ["diseases", "icd10_codes", "symptoms", "generic_drugs", "medical_specialties"]
 
-        for attr in redundant_attrs:
-            # Check they're not directly defined in the locale class
-            assert attr not in ESProvider.__dict__, f"Spanish provider has redundant '{attr}' attribute"
-            assert attr not in PTProvider.__dict__, f"Portuguese provider has redundant '{attr}' attribute"
+        for locale, provider_class in locale_providers.items():
+            for attr in redundant_attrs:
+                assert attr not in provider_class.__dict__, f"{locale} provider has redundant '{attr}' attribute"
 
-        # The locale classes should only have the 7 non-redundant constants
+        for attr in redundant_attrs:
+            assert attr in HealthcareProvider.__dict__, f"Base provider missing '{attr}' property"
+            assert isinstance(getattr(HealthcareProvider, attr), property), f"Base provider '{attr}' is not a property"
+
         expected_attrs = [
             "hospital_departments",
             "brand_drugs",
@@ -40,79 +52,45 @@ class TestOptimization:
             "vital_signs",
         ]
 
-        for attr in expected_attrs:
-            assert attr in ESProvider.__dict__, f"Spanish provider missing '{attr}' attribute"
-            assert attr in PTProvider.__dict__, f"Portuguese provider missing '{attr}' attribute"
+        all_providers = {**{"en (base)": HealthcareProvider}, **locale_providers}
+        for locale, provider_class in all_providers.items():
+            for attr in expected_attrs:
+                assert attr in provider_class.__dict__, f"{locale} provider missing '{attr}' attribute"
 
     def test_locale_providers_inherit_from_base(self) -> None:
         """Verify that locale providers properly inherit from the base HealthcareProvider."""
+        from faker_healthcare.de_DE import Provider as DEProvider
         from faker_healthcare.es_ES import Provider as ESProvider
+        from faker_healthcare.fr_FR import Provider as FRProvider
         from faker_healthcare.pt_BR import Provider as PTProvider
+        from faker_healthcare.zh_CN import Provider as ZHProvider
 
-        assert issubclass(ESProvider, HealthcareProvider)
-        assert issubclass(PTProvider, HealthcareProvider)
+        all_providers = [HealthcareProvider, DEProvider, ESProvider, FRProvider, PTProvider, ZHProvider]
+
+        for provider_class in all_providers:
+            assert issubclass(provider_class, HealthcareProvider)
 
     def test_locale_constants_have_correct_types(self) -> None:
         """Verify that locale constants are tuples."""
-        from faker_healthcare.es_ES.constants import (
-            ALLERGIES as ES_ALLERGIES,
-        )
-        from faker_healthcare.es_ES.constants import (
-            BLOOD_TYPES as ES_BLOOD_TYPES,
-        )
-        from faker_healthcare.es_ES.constants import (
-            BRAND_DRUGS as ES_BRAND_DRUGS,
-        )
-        from faker_healthcare.es_ES.constants import (
-            HOSPITAL_DEPARTMENTS as ES_HOSPITAL_DEPARTMENTS,
-        )
-        from faker_healthcare.es_ES.constants import (
-            INSURANCE_PLANS as ES_INSURANCE_PLANS,
-        )
-        from faker_healthcare.es_ES.constants import (
-            MEDICAL_PROCEDURES as ES_MEDICAL_PROCEDURES,
-        )
-        from faker_healthcare.es_ES.constants import (
-            VITAL_SIGNS as ES_VITAL_SIGNS,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            ALLERGIES as PT_ALLERGIES,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            BLOOD_TYPES as PT_BLOOD_TYPES,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            BRAND_DRUGS as PT_BRAND_DRUGS,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            HOSPITAL_DEPARTMENTS as PT_HOSPITAL_DEPARTMENTS,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            INSURANCE_PLANS as PT_INSURANCE_PLANS,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            MEDICAL_PROCEDURES as PT_MEDICAL_PROCEDURES,
-        )
-        from faker_healthcare.pt_BR.constants import (
-            VITAL_SIGNS as PT_VITAL_SIGNS,
-        )
+        import importlib
 
-        # All should be tuples
-        for const in [
-            ES_HOSPITAL_DEPARTMENTS,
-            ES_BRAND_DRUGS,
-            ES_BLOOD_TYPES,
-            ES_ALLERGIES,
-            ES_MEDICAL_PROCEDURES,
-            ES_INSURANCE_PLANS,
-            ES_VITAL_SIGNS,
-            PT_HOSPITAL_DEPARTMENTS,
-            PT_BRAND_DRUGS,
-            PT_BLOOD_TYPES,
-            PT_ALLERGIES,
-            PT_MEDICAL_PROCEDURES,
-            PT_INSURANCE_PLANS,
-            PT_VITAL_SIGNS,
-        ]:
-            assert isinstance(const, tuple)
-            assert len(const) > 0
+        locales = ["en (base)", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
+        constant_names = [
+            "HOSPITAL_DEPARTMENTS",
+            "BRAND_DRUGS",
+            "BLOOD_TYPES",
+            "ALLERGIES",
+            "MEDICAL_PROCEDURES",
+            "INSURANCE_PLANS",
+            "VITAL_SIGNS",
+        ]
+
+        for locale in locales:
+            if locale == "en (base)":
+                constants_module = importlib.import_module("faker_healthcare.constants")
+            else:
+                constants_module = importlib.import_module(f"faker_healthcare.{locale}.constants")
+            for const_name in constant_names:
+                const = getattr(constants_module, const_name)
+                assert isinstance(const, tuple), f"{locale}.{const_name} is not a tuple"
+                assert len(const) > 0, f"{locale}.{const_name} is empty"
