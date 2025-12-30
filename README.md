@@ -10,7 +10,42 @@ This provider generates **correlated clinical data** based on the **World Health
 pip install faker-healthcare-provider
 ```
 
-## Supported Languages
+## Quick Start
+
+```python
+from faker import Faker
+from faker_healthcare import HealthcareProvider
+
+# English (default)
+fake = Faker()
+fake.add_provider(HealthcareProvider)
+
+# Generate a complete patient scenario
+scenario = fake.patient_scenario()
+print(scenario)
+# {
+#   'disease': 'Type 2 Diabetes',
+#   'icd10': 'E11.9',
+#   'symptoms': ['Fatigue', 'Blurred Vision', 'Frequent Urination'],
+#   'medications': ['Metformin', 'Insulin Glargine'],
+#   'specialty': 'Endocrinology'
+# }
+
+# Or generate individual data
+fake.disease()            # 'Essential Hypertension'
+fake.diagnosis()          # 'Type 2 Diabetes (E11.9)'
+fake.medical_specialty()  # 'Cardiology'
+
+# Use a different language (Spanish, Portuguese, Chinese, French, German)
+fake_es = Faker('es_ES')
+fake_es.add_provider(HealthcareProvider)
+fake_es.disease()         # 'Diabetes Tipo 2'
+fake_es.diagnosis()       # 'Diabetes Tipo 2 (E11.9)'
+```
+
+💡 **Tip**: Run `python showcase.py` to see all available features and examples!
+
+## Usage
 
 - 🇺🇸 **English** (`en_US`) - Default
 - 🇪🇸 **Spanish** (`es_ES`)
