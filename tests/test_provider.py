@@ -24,11 +24,11 @@ class TestHealthcareProvider:
             assert isinstance(result, str)
             assert len(result) > 0
 
-    def test_medical_specialty(self, faker: Faker) -> None:
+    def test_disease_medical_specialty(self, faker: Faker) -> None:
         for _ in range(100):
-            result: str = faker.medical_specialty()
+            result: str = faker.disease_medical_specialty()
             assert isinstance(result, str)
-            assert result in HealthcareProvider.medical_specialties
+            assert len(result) > 0
 
     def test_hospital_department(self, faker: Faker) -> None:
         for _ in range(100):

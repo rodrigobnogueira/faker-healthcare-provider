@@ -71,11 +71,11 @@ class TestCorrelatedData:
         assert "icd10" in result
         assert "symptoms" in result
         assert "medications" in result
-        assert "specialty" in result
+        assert "medical_specialty" in result
 
         disease = result["disease"]
         assert result["icd10"] == DISEASE_CORRELATIONS[disease]["icd10"]
-        assert result["specialty"] == DISEASE_CORRELATIONS[disease]["specialty"]
+        assert result["medical_specialty"] == DISEASE_CORRELATIONS[disease]["medical_specialty"]
         assert all(s in DISEASE_CORRELATIONS[disease]["symptoms"] for s in result["symptoms"])
         assert all(m in DISEASE_CORRELATIONS[disease]["medications"] for m in result["medications"])
 
@@ -85,7 +85,7 @@ class TestCorrelatedData:
         result = faker.patient_scenario(disease=disease)
         assert result["disease"] == disease
         assert result["icd10"] == DISEASE_CORRELATIONS[disease]["icd10"]
-        assert result["specialty"] == DISEASE_CORRELATIONS[disease]["specialty"]
+        assert result["medical_specialty"] == DISEASE_CORRELATIONS[disease]["medical_specialty"]
 
     def test_diagnosis_correlated(self, faker: Faker) -> None:
         """Test that diagnosis returns correctly correlated disease and ICD-10 code."""
@@ -135,7 +135,7 @@ class TestDataIntegrity:
 
     def test_all_diseases_have_required_fields(self) -> None:
         """Test that all diseases in DISEASE_CORRELATIONS have required fields."""
-        required_fields = ["icd10", "symptoms", "medications", "specialty"]
+        required_fields = ["icd10", "symptoms", "medications", "medical_specialty"]
         for disease, data in DISEASE_CORRELATIONS.items():
             for field in required_fields:
                 assert field in data, f"Disease '{disease}' missing field '{field}'"

@@ -9,7 +9,7 @@ class DiseaseData(TypedDict):
     icd10: str
     symptoms: list[str]
     medications: list[str]
-    specialty: str
+    medical_specialty: str
 
 
 class PatientScenario(TypedDict):
@@ -19,4 +19,4 @@ class PatientScenario(TypedDict):
     icd10: str
     symptoms: list[str]
     medications: list[str]
-    specialty: str
+    medical_specialty: str

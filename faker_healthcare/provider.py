@@ -9,7 +9,6 @@ from .constants import (
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
-    MEDICAL_SPECIALTIES,
     VITAL_SIGNS,
 )
 from .disease_correlations import DISEASE_CORRELATIONS
@@ -20,7 +19,7 @@ class PatientScenario(TypedDict):
     icd10: str
     symptoms: list[str]
     medications: list[str]
-    specialty: str
+    medical_specialty: str
 
 
 class HealthcareProvider(BaseProvider):
@@ -60,7 +59,11 @@ class HealthcareProvider(BaseProvider):
             all_meds.update(data["medications"])
         return tuple(sorted(all_meds))
 
-    medical_specialties: ElementsType[str] = MEDICAL_SPECIALTIES
+    @property
+    def medical_specialties(self) -> tuple[str, ...]:
+        """All unique medical specialties (derived from DISEASE_CORRELATIONS)."""
+        specialties = {data["medical_specialty"] for data in DISEASE_CORRELATIONS.values()}
+        return tuple(sorted(specialties))
 
     hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
 
@@ -91,7 +94,7 @@ class HealthcareProvider(BaseProvider):
             return DISEASE_CORRELATIONS[disease]["icd10"]
         return self.random_element(self.icd10_codes)
 
-    def medical_specialty(self) -> str:
+    def disease_medical_specialty(self) -> str:
         return self.random_element(self.medical_specialties)
 
     def hospital_department(self) -> str:
@@ -190,7 +193,7 @@ class HealthcareProvider(BaseProvider):
                 - icd10: The correct ICD-10 code
                 - symptoms: List of 3-5 correlated symptoms
                 - medications: List of 2-3 correlated medications
-                - specialty: The primary medical specialty
+                - medical_specialty: The primary medical specialty
         """
         if disease is None:
             disease = self.disease()
@@ -206,7 +209,7 @@ class HealthcareProvider(BaseProvider):
             "icd10": disease_data["icd10"],
             "symptoms": self.disease_symptoms(disease, count=num_symptoms),
             "medications": self.medications(disease, count=num_meds),
-            "specialty": disease_data["specialty"],
+            "medical_specialty": disease_data["medical_specialty"],
         }
 
     def blood_type(self) -> str:

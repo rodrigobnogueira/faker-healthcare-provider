@@ -27,9 +27,9 @@ class TestLocaleProviders:
         assert isinstance(code, str)
         assert len(code) > 0
 
-    def test_medical_specialty_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
+    def test_disease_medical_specialty_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
         fake, locale = fake_locale
-        specialty = fake.medical_specialty()
+        specialty = fake.disease_medical_specialty()
         assert isinstance(specialty, str)
         assert len(specialty) > 0
 
