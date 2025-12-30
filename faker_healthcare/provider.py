@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TypedDict
 
 from faker.providers import BaseProvider, ElementsType
 
@@ -13,6 +13,14 @@ from .constants import (
     VITAL_SIGNS,
 )
 from .disease_correlations import DISEASE_CORRELATIONS
+
+
+class PatientScenario(TypedDict):
+    disease: str
+    icd10: str
+    symptoms: list[str]
+    medications: list[str]
+    specialty: str
 
 
 class HealthcareProvider(BaseProvider):
@@ -39,7 +47,7 @@ class HealthcareProvider(BaseProvider):
     @property
     def symptoms(self) -> tuple[str, ...]:
         """All unique symptoms across all diseases (derived from DISEASE_CORRELATIONS)."""
-        all_symptoms = set()
+        all_symptoms: set[str] = set()
         for data in DISEASE_CORRELATIONS.values():
             all_symptoms.update(data["symptoms"])
         return tuple(sorted(all_symptoms))
@@ -47,7 +55,7 @@ class HealthcareProvider(BaseProvider):
     @property
     def generic_drugs(self) -> tuple[str, ...]:
         """All unique medications (derived from DISEASE_CORRELATIONS)."""
-        all_meds = set()
+        all_meds: set[str] = set()
         for data in DISEASE_CORRELATIONS.values():
             all_meds.update(data["medications"])
         return tuple(sorted(all_meds))
@@ -125,7 +133,7 @@ class HealthcareProvider(BaseProvider):
 
         disease_symptoms = DISEASE_CORRELATIONS[disease]["symptoms"]
         actual_count = min(count, len(disease_symptoms))
-        return self.random_elements(disease_symptoms, length=actual_count, unique=True)
+        return list(self.random_elements(disease_symptoms, length=actual_count, unique=True))
 
     def medication(self, disease: str | None = None) -> str:
         """Return a medication.
@@ -157,7 +165,7 @@ class HealthcareProvider(BaseProvider):
 
         disease_meds = DISEASE_CORRELATIONS[disease]["medications"]
         actual_count = min(count, len(disease_meds))
-        return self.random_elements(disease_meds, length=actual_count, unique=True)
+        return list(self.random_elements(disease_meds, length=actual_count, unique=True))
 
     def diseases_by_symptom(self, symptom: str) -> list[str]:
         """Return all diseases that have a specific symptom.
@@ -170,7 +178,7 @@ class HealthcareProvider(BaseProvider):
         """
         return [disease_name for disease_name, data in DISEASE_CORRELATIONS.items() if symptom in data["symptoms"]]
 
-    def patient_scenario(self, disease: str | None = None) -> dict[str, Any]:
+    def patient_scenario(self, disease: str | None = None) -> PatientScenario:
         """Generate a complete patient scenario with correlated clinical data.
 
         Args:

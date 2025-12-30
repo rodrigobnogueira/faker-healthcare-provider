@@ -5,88 +5,88 @@ from faker_healthcare import HealthcareProvider
 
 
 @pytest.fixture
-def faker():
+def faker() -> Faker:
     fake = Faker()
     fake.add_provider(HealthcareProvider)
     return fake
 
 
 class TestHealthcareProvider:
-    def test_disease(self, faker):
+    def test_disease(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.disease()
+            result: str = faker.disease()
             assert isinstance(result, str)
             assert len(result) > 0
 
-    def test_icd10_code(self, faker):
+    def test_icd10_code(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.icd10_code()
+            result: str = faker.icd10_code()
             assert isinstance(result, str)
             assert len(result) > 0
 
-    def test_medical_specialty(self, faker):
+    def test_medical_specialty(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.medical_specialty()
+            result: str = faker.medical_specialty()
             assert isinstance(result, str)
             assert result in HealthcareProvider.medical_specialties
 
-    def test_hospital_department(self, faker):
+    def test_hospital_department(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.hospital_department()
+            result: str = faker.hospital_department()
             assert isinstance(result, str)
             assert result in HealthcareProvider.hospital_departments
 
-    def test_generic_drug(self, faker):
+    def test_generic_drug(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.generic_drug()
+            result: str = faker.generic_drug()
             assert isinstance(result, str)
             assert len(result) > 0
 
-    def test_brand_drug(self, faker):
+    def test_brand_drug(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.brand_drug()
+            result: str = faker.brand_drug()
             assert isinstance(result, str)
             assert result in HealthcareProvider.brand_drugs
 
-    def test_symptom(self, faker):
+    def test_symptom(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.symptom()
+            result: str = faker.symptom()
             assert isinstance(result, str)
             assert len(result) > 0
 
-    def test_blood_type(self, faker):
+    def test_blood_type(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.blood_type()
+            result: str = faker.blood_type()
             assert isinstance(result, str)
             assert result in HealthcareProvider.blood_types
 
-    def test_allergy(self, faker):
+    def test_allergy(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.allergy()
+            result: str = faker.allergy()
             assert isinstance(result, str)
             assert result in HealthcareProvider.allergies
 
-    def test_medical_procedure(self, faker):
+    def test_medical_procedure(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.medical_procedure()
+            result: str = faker.medical_procedure()
             assert isinstance(result, str)
             assert result in HealthcareProvider.medical_procedures
 
-    def test_insurance_plan(self, faker):
+    def test_insurance_plan(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.insurance_plan()
+            result: str = faker.insurance_plan()
             assert isinstance(result, str)
             assert result in HealthcareProvider.insurance_plans
 
-    def test_vital_sign(self, faker):
+    def test_vital_sign(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.vital_sign()
+            result: str = faker.vital_sign()
             assert isinstance(result, str)
             assert result in HealthcareProvider.vital_signs
 
-    def test_diagnosis(self, faker):
+    def test_diagnosis(self, faker: Faker) -> None:
         for _ in range(100):
-            result = faker.diagnosis()
+            result: str = faker.diagnosis()
             assert isinstance(result, str)
             assert "(" in result
             assert ")" in result

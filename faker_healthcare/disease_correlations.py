@@ -10,10 +10,19 @@ MEDICAL DISCLAIMER: This data is for TESTING AND DEVELOPMENT PURPOSES ONLY.
 It should NOT be used for actual medical diagnosis, treatment, or healthcare decisions.
 """
 
-from typing import Any
+from typing import TypedDict
 
 
-DISEASE_CORRELATIONS: dict[str, dict[str, Any]] = {
+class DiseaseData(TypedDict):
+    """Structure for disease correlation data."""
+
+    icd10: str
+    symptoms: list[str]
+    medications: list[str]
+    specialty: str
+
+
+DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Type 2 Diabetes": {
         "icd10": "E11.9",
         "symptoms": ["Frequent Urination", "Increased Appetite", "Fatigue", "Blurred Vision", "Weight Loss"],
