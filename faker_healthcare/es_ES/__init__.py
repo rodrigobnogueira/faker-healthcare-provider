@@ -1,3 +1,5 @@
+from faker.providers import ElementsType
+
 from .. import HealthcareProvider as BaseHealthcareProvider
 from .constants import (
     ALLERGIES,
@@ -13,10 +15,10 @@ from .constants import (
 class Provider(BaseHealthcareProvider):
     """Proveedor de Faker para generar datos médicos/sanitarios falsos (es_ES)."""
 
-    hospital_departments = HOSPITAL_DEPARTMENTS
-    brand_drugs = BRAND_DRUGS
-    blood_types = BLOOD_TYPES
-    allergies = ALLERGIES
-    medical_procedures = MEDICAL_PROCEDURES
-    insurance_plans = INSURANCE_PLANS
-    vital_signs = VITAL_SIGNS
+    hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
+    brand_drugs: ElementsType[str] = BRAND_DRUGS
+    blood_types: ElementsType[str] = BLOOD_TYPES
+    allergies: ElementsType[str] = ALLERGIES
+    medical_procedures: ElementsType[str] = MEDICAL_PROCEDURES
+    insurance_plans: ElementsType[str] = INSURANCE_PLANS
+    vital_signs: ElementsType[str] = VITAL_SIGNS
