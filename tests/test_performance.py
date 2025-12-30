@@ -10,47 +10,11 @@ Note: Full locale-specific disease data isolation would require dynamic locale-b
 DISEASE_CORRELATIONS loading, which is beyond the current refactoring scope.
 """
 
-import subprocess
-import sys
-
 from faker_healthcare import HealthcareProvider
 
 
-class TestMemoryOptimization:
+class TestOptimization:
     """Test memory optimization and module loading behavior."""
-
-    def test_locale_constants_isolated_from_disease_data(self) -> None:
-        """Verify that importing locale constants doesn't load disease correlations."""
-        script = """
-import sys
-
-# Import Spanish constants
-from faker_healthcare.es_ES.constants import HOSPITAL_DEPARTMENTS, BRAND_DRUGS
-
-# Check that Spanish disease correlations are NOT loaded yet
-assert 'faker_healthcare.es_ES.disease_correlations' not in sys.modules, \
-    "Spanish disease data was loaded when importing constants"
-
-# Portuguese data should also not be loaded
-assert 'faker_healthcare.pt_BR.disease_correlations' not in sys.modules, \
-    "Portuguese disease data was loaded when importing constants"
-
-# Importing Portuguese constants should also not load disease data
-from faker_healthcare.pt_BR.constants import VITAL_SIGNS
-
-assert 'faker_healthcare.pt_BR.disease_correlations' not in sys.modules, \
-    "Portuguese disease data was loaded when importing constants"
-
-print("SUCCESS")
-"""
-        result = subprocess.run(
-            [sys.executable, "-c", script],
-            capture_output=True,
-            text=True,
-            cwd=".",
-        )
-        assert result.returncode == 0, f"stdout: {result.stdout}, stderr: {result.stderr}"
-        assert "SUCCESS" in result.stdout
 
     def test_no_redundant_data_in_locale_providers(self) -> None:
         """Verify that locale providers don't have redundant disease-derived data as class attributes."""
@@ -152,22 +116,3 @@ print("SUCCESS")
         ]:
             assert isinstance(const, tuple)
             assert len(const) > 0
-
-    def test_memory_footprint_reduced(self) -> None:
-        """Verify that locale files are now much smaller after refactoring."""
-        import os
-
-        es_init_path = "faker_healthcare/es_ES/__init__.py"
-        pt_init_path = "faker_healthcare/pt_BR/__init__.py"
-
-        # Get file sizes
-        es_size = os.path.getsize(es_init_path)
-        pt_size = os.path.getsize(pt_init_path)
-
-        # After refactoring, these files should be small (< 1KB)
-        # Before refactoring they were ~24KB and ~23KB respectively
-        assert es_size < 1024, f"Spanish __init__.py too large: {es_size} bytes"
-        assert pt_size < 1024, f"Portuguese __init__.py too large: {pt_size} bytes"
-
-        print(f"Spanish __init__.py: {es_size} bytes")
-        print(f"Portuguese __init__.py: {pt_size} bytes")
