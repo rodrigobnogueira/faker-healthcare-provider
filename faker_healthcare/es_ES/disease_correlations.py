@@ -1,6 +1,6 @@
 """
 Datos de Correlaciones de Enfermedades
-Este módulo contiene el diccionario DISEASE_CORRELATIONS que mapea todas las 150 enfermedades
+Este módulo contiene el diccionario DISEASE_CORRELATIONS que mapea todas las 158 enfermedades
 a sus síntomas, códigos CIE-10, medicamentos y especialidades primarias.
 Datos procedentes de la clasificación CIE-10 de la OMS.
 AVISO LEGAL MÉDICO: Estos datos son SOLO PARA FINES DE PRUEBAS Y DESARROLLO.
@@ -910,5 +910,53 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["Convulsiones", "Pérdida de conciencia", "Convulsiones", "Confusión", "Movimientos incontrolados"],
         "medications": ["Levetiracetam", "Ácido valproico", "Carbamazepina", "Lamotrigina", "Topiramato"],
         "medical_specialty": "Neurología",
+    },
+    "Herpes zóster": {
+        "icd10": "B02.9",
+        "symptoms": ["Erupción cutánea", "Sensación de ardor", "Picor", "Dolor", "Fiebre"],
+        "medications": ["Aciclovir", "Valaciclovir", "Famciclovir", "Gabapentina", "Pregabalina"],
+        "medical_specialty": "Dermatología",
+    },
+    "Celulitis infecciosa": {
+        "icd10": "L03.90",
+        "symptoms": ["Enrojecimiento", "Hinchazón", "Calor", "Dolor", "Fiebre"],
+        "medications": ["Cefalexina", "Dicloxacilina", "Clindamicina", "Cefazolina", "Doxiciclina"],
+        "medical_specialty": "Dermatología",
+    },
+    "Enfermedad de Lyme": {
+        "icd10": "A69.20",
+        "symptoms": ["Erupción cutánea", "Fiebre", "Fatiga", "Dolor articular", "Cefalea"],
+        "medications": ["Doxiciclina", "Amoxicilina", "Cefuroxima", "Ceftriaxona", "Azitromicina"],
+        "medical_specialty": "Enfermedades Infecciosas",
+    },
+    "Dengue": {
+        "icd10": "A90",
+        "symptoms": ["Fiebre", "Cefalea", "Dolor articular", "Dolores musculares", "Erupción cutánea"],
+        "medications": ["Paracetamol", "Líquidos intravenosos", "Cuidados de soporte", "Hidratación"],
+        "medical_specialty": "Enfermedades Infecciosas",
+    },
+    "Mononucleosis infecciosa": {
+        "icd10": "B27.90",
+        "symptoms": ["Dolor de garganta", "Fiebre", "Fatiga", "Ganglios linfáticos inflamados", "Cefalea"],
+        "medications": ["Paracetamol", "Ibuprofeno", "Cuidados de soporte", "Hidratación"],
+        "medical_specialty": "Enfermedades Infecciosas",
+    },
+    "Gastroenteritis viral": {
+        "icd10": "A08.4",
+        "symptoms": ["Diarrea", "Vómitos", "Náuseas", "Dolor abdominal", "Fiebre"],
+        "medications": ["Líquidos intravenosos", "Loperamida", "Hidratación", "Probióticos", "Cuidados de soporte"],
+        "medical_specialty": "Enfermedades Infecciosas",
+    },
+    "Enfermedad del hígado graso no alcohólico": {
+        "icd10": "K76.0",
+        "symptoms": ["Fatiga", "Dolor abdominal", "Debilidad", "Ictericia"],
+        "medications": ["Resmetirom", "Vitamina E", "Pioglitazona", "Semaglutida", "Liraglutida"],
+        "medical_specialty": "Gastroenterología",
+    },
+    "Síndrome del túnel carpiano": {
+        "icd10": "G56.00",
+        "symptoms": ["Entumecimiento", "Hormigueo", "Dolor", "Debilidad", "Sensación de ardor"],
+        "medications": ["Ibuprofeno", "Naproxeno", "Inyección de corticosteroides", "Férula de muñeca", "Cirugía"],
+        "medical_specialty": "Ortopedia",
     },
 }

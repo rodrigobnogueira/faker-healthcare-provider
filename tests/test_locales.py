@@ -1,3 +1,5 @@
+import importlib
+
 import pytest
 from faker import Faker
 
@@ -5,6 +7,19 @@ from faker_healthcare import HealthcareProvider
 
 
 SUPPORTED_LOCALES = ["en_US", "pt_BR", "es_ES", "zh_CN", "fr_FR", "de_DE"]
+
+# ICD-10 codes are universal, so they are the reliable way to check that a condition
+# exists in every locale regardless of how its name is translated.
+NEW_CONDITION_ICD10_CODES = {"B02.9", "L03.90", "A69.20", "A90", "B27.90", "A08.4", "K76.0", "G56.00"}
+
+
+def _load_correlations(locale: str) -> dict:
+    """Load the DISEASE_CORRELATIONS mapping for a given locale."""
+    if locale == "en_US":
+        module = importlib.import_module("faker_healthcare.disease_correlations")
+    else:
+        module = importlib.import_module(f"faker_healthcare.{locale}.disease_correlations")
+    return module.DISEASE_CORRELATIONS
 
 
 def _get_provider_for_locale(locale: str):
@@ -167,3 +182,28 @@ class TestLocaleSpecificData:
             if locale != "en_US":
                 english_diseases = ["Type 2 Diabetes", "Hypertension", "Hyperlipidemia"]
                 assert not any(ed in all_diseases for ed in english_diseases), f"Locale {locale} failed: English diseases found in locale-specific data!"
+
+
+class TestLocaleParity:
+    """Verify every locale exposes the same catalog of conditions (matched by universal ICD-10 codes)."""
+
+    def test_all_locales_have_equal_disease_count(self) -> None:
+        """Every locale must define the same number of diseases so no locale falls behind on additions."""
+        counts = {locale: len(_load_correlations(locale)) for locale in SUPPORTED_LOCALES}
+        assert len(set(counts.values())) == 1, f"Locale disease counts differ: {counts}"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_new_conditions_present_in_locale(self, locale: str) -> None:
+        """Each locale must include the 2.2.0 conditions, identified by their shared ICD-10 codes."""
+        codes = {data["icd10"] for data in _load_correlations(locale).values()}
+        missing = NEW_CONDITION_ICD10_CODES - codes
+        assert not missing, f"Locale {locale} is missing conditions with ICD-10 codes: {missing}"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_locale_entries_are_structurally_complete(self, locale: str) -> None:
+        """Every locale entry must carry non-empty symptoms, medications, and a specialty."""
+        for disease, data in _load_correlations(locale).items():
+            assert data["icd10"], f"{locale}: '{disease}' has empty ICD-10 code"
+            assert data["symptoms"], f"{locale}: '{disease}' has no symptoms"
+            assert data["medications"], f"{locale}: '{disease}' has no medications"
+            assert data["medical_specialty"], f"{locale}: '{disease}' has no specialty"

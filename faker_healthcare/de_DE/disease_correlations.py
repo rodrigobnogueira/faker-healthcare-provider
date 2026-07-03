@@ -1,7 +1,7 @@
 """
 Daten zu Krankheitskorrelationen
 
-Dieses Modul enthält das Wörterbuch KRANKHEITS_KORRELATIONEN, das alle 150 Krankheiten
+Dieses Modul enthält das Wörterbuch KRANKHEITS_KORRELATIONEN, das alle 158 Krankheiten
 zu ihren Symptomen, ICD-10-Codes, Medikamenten und primären Fachgebieten zuordnet.
 
 Daten stammen aus der WHO-ICD-10-Klassifikation.
@@ -913,5 +913,53 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["Anfälle", "Bewusstseinsverlust", "Krämpfe", "Verwirrtheit", "Unkontrollierte Bewegungen"],
         "medications": ["Levetiracetam", "Valproinsäure", "Carbamazepin", "Lamotrigin", "Topiramat"],
         "medical_specialty": "Neurologie",
+    },
+    "Gürtelrose": {
+        "icd10": "B02.9",
+        "symptoms": ["Ausschlag", "Brennendes Gefühl", "Jucken", "Schmerzen", "Fieber"],
+        "medications": ["Aciclovir", "Valaciclovir", "Famciclovir", "Gabapentin", "Pregabalin"],
+        "medical_specialty": "Dermatologie",
+    },
+    "Phlegmone": {
+        "icd10": "L03.90",
+        "symptoms": ["Rötung", "Schwellungen", "Wärme", "Schmerzen", "Fieber"],
+        "medications": ["Cephalexin", "Dicloxacillin", "Clindamycin", "Cefazolin", "Doxycyclin"],
+        "medical_specialty": "Dermatologie",
+    },
+    "Lyme-Borreliose": {
+        "icd10": "A69.20",
+        "symptoms": ["Ausschlag", "Fieber", "Müdigkeit", "Gelenkschmerzen", "Kopfschmerzen"],
+        "medications": ["Doxycyclin", "Amoxicillin", "Cefuroxim", "Ceftriaxon", "Azithromycin"],
+        "medical_specialty": "Infektiologie",
+    },
+    "Denguefieber": {
+        "icd10": "A90",
+        "symptoms": ["Fieber", "Kopfschmerzen", "Gelenkschmerzen", "Muskelschmerzen", "Ausschlag"],
+        "medications": ["Paracetamol", "IV-Flüssigkeiten", "Supportive Pflege", "Hydration"],
+        "medical_specialty": "Infektiologie",
+    },
+    "Infektiöse Mononukleose": {
+        "icd10": "B27.90",
+        "symptoms": ["Halsschmerzen", "Fieber", "Müdigkeit", "Geschwollene Lymphknoten", "Kopfschmerzen"],
+        "medications": ["Paracetamol", "Ibuprofen", "Supportive Pflege", "Hydration"],
+        "medical_specialty": "Infektiologie",
+    },
+    "Virale Gastroenteritis": {
+        "icd10": "A08.4",
+        "symptoms": ["Durchfall", "Erbrechen", "Übelkeit", "Bauchschmerzen", "Fieber"],
+        "medications": ["IV-Flüssigkeiten", "Loperamid", "Hydration", "Probiotika", "Supportive Pflege"],
+        "medical_specialty": "Infektiologie",
+    },
+    "Nichtalkoholische Fettlebererkrankung": {
+        "icd10": "K76.0",
+        "symptoms": ["Müdigkeit", "Bauchschmerzen", "Schwäche", "Gelbsucht"],
+        "medications": ["Resmetirom", "Vitamin E", "Pioglitazon", "Semaglutid", "Liraglutid"],
+        "medical_specialty": "Gastroenterologie",
+    },
+    "Karpaltunnelsyndrom": {
+        "icd10": "G56.00",
+        "symptoms": ["Taubheitsgefühl", "Kribbeln", "Schmerzen", "Schwäche", "Brennendes Gefühl"],
+        "medications": ["Ibuprofen", "Naproxen", "Kortikosteroid-Injektion", "Handgelenkschiene", "Chirurgie"],
+        "medical_specialty": "Orthopädie",
     },
 }

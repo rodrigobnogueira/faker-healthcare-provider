@@ -1,0 +1,108 @@
+name: Release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) — no token or secret needed.
+# One-time setup on PyPI (project → Settings → Publishing → Add a publisher):
+#   owner: rodrigobnogueira, repository: faker-healthcare-provider,
+#   workflow: release.yml, environment: pypi
+#
+# Normal flow: push a vX.Y.Z tag and this workflow tests, builds, and publishes.
+# workflow_dispatch exists so a release can be (re)run for an already-pushed tag
+# (Actions → Release → Run workflow → choose the tag as the ref).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and test dependencies
+        run: python -m pip install -e . pytest
+
+      - name: Run tests
+        run: python -m pytest
+
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install build tooling
+        run: python -m pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Check distributions
+        run: python -m twine check dist/*
+
+      - name: Guard — tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION="$(python -c 'import tomllib,pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag v$TAG does not match pyproject version $VERSION" >&2
+            exit 1
+          fi
+
+      - name: Upload distributions artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: pypi
+      url: https://pypi.org/project/faker-healthcare-provider/
+    permissions:
+      # Trusted Publishing: PyPI validates the workflow's OIDC identity token.
+      id-token: write
+
+    steps:
+      - name: Download distributions artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
