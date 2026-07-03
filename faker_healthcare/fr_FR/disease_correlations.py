@@ -1,7 +1,7 @@
 """
 Données de Corrélations des Maladies
 
-Ce module contient le dictionnaire DISEASE_CORRELATIONS mappant les 150 maladies
+Ce module contient le dictionnaire DISEASE_CORRELATIONS mappant les 158 maladies
 à leurs symptômes, codes CIM-10, médicaments et spécialités médicales principales.
 
 Données issues de la classification CIM-10 de l'OMS.
@@ -913,5 +913,53 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["Crises", "Perte de conscience", "Convulsions", "Confusion", "Mouvements incontrôlés"],
         "medications": ["Levetiracetam", "Valproic Acid", "Carbamazepine", "Lamotrigine", "Topiramate"],
         "medical_specialty": "Neurologie",
+    },
+    "Zona": {
+        "icd10": "B02.9",
+        "symptoms": ["Éruption cutanée", "Sensation de brûlure", "Démangeaisons", "Douleur", "Fièvre"],
+        "medications": ["Acyclovir", "Valacyclovir", "Famciclovir", "Gabapentin", "Pregabalin"],
+        "medical_specialty": "Dermatologie",
+    },
+    "Cellulite infectieuse": {
+        "icd10": "L03.90",
+        "symptoms": ["Rougeur", "Œdème", "Chaleur", "Douleur", "Fièvre"],
+        "medications": ["Cephalexin", "Dicloxacillin", "Clindamycin", "Cefazolin", "Doxycycline"],
+        "medical_specialty": "Dermatologie",
+    },
+    "Maladie de Lyme": {
+        "icd10": "A69.20",
+        "symptoms": ["Éruption cutanée", "Fièvre", "Fatigue", "Douleur articulaire", "Céphalées"],
+        "medications": ["Doxycycline", "Amoxicillin", "Cefuroxime", "Ceftriaxone", "Azithromycin"],
+        "medical_specialty": "Maladies infectieuses",
+    },
+    "Dengue": {
+        "icd10": "A90",
+        "symptoms": ["Fièvre", "Céphalées", "Douleur articulaire", "Douleurs musculaires", "Éruption cutanée"],
+        "medications": ["Acetaminophen", "IV Fluids", "Supportive Care", "Hydration"],
+        "medical_specialty": "Maladies infectieuses",
+    },
+    "Mononucléose infectieuse": {
+        "icd10": "B27.90",
+        "symptoms": ["Mal de gorge", "Fièvre", "Fatigue", "Ganglions lymphatiques gonflés", "Céphalées"],
+        "medications": ["Acetaminophen", "Ibuprofen", "Supportive Care", "Hydration"],
+        "medical_specialty": "Maladies infectieuses",
+    },
+    "Gastro-entérite virale": {
+        "icd10": "A08.4",
+        "symptoms": ["Diarrhée", "Vomissements", "Nausées", "Douleur abdominale", "Fièvre"],
+        "medications": ["IV Fluids", "Loperamide", "Hydration", "Probiotics", "Supportive Care"],
+        "medical_specialty": "Maladies infectieuses",
+    },
+    "Stéatose hépatique non alcoolique": {
+        "icd10": "K76.0",
+        "symptoms": ["Fatigue", "Douleur abdominale", "Faiblesse", "Ictère"],
+        "medications": ["Resmetirom", "Vitamin E", "Pioglitazone", "Semaglutide", "Liraglutide"],
+        "medical_specialty": "Gastroentérologie",
+    },
+    "Syndrome du canal carpien": {
+        "icd10": "G56.00",
+        "symptoms": ["Engourdissement", "Picotements", "Douleur", "Faiblesse", "Sensation de brûlure"],
+        "medications": ["Ibuprofen", "Naproxen", "Corticosteroid Injection", "Wrist Splint", "Surgery"],
+        "medical_specialty": "Orthopédie",
     },
 }

@@ -1,6 +1,6 @@
 """
 Dados de Correlações de Doenças
-Este módulo contém o dicionário DISEASE_CORRELATIONS mapeando todas as 150 doenças
+Este módulo contém o dicionário DISEASE_CORRELATIONS mapeando todas as 158 doenças
 para seus sintomas, códigos CID-10, medicamentos e especialidades primárias.
 Dados obtidos da classificação CID-10 da OMS.
 AVISO MÉDICO: Esses dados são APENAS PARA FINS DE TESTE E DESENVOLVIMENTO.
@@ -910,5 +910,53 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["Convulsões", "Perda de consciência", "Convulsões", "Confusão", "Movimentos incontrolados"],
         "medications": ["Levetiracetam", "Ácido valproico", "Carbamazepina", "Lamotrigina", "Topiramato"],
         "medical_specialty": "Neurologia",
+    },
+    "Herpes-zóster": {
+        "icd10": "B02.9",
+        "symptoms": ["Erupção cutânea", "Sensação de queimação", "Coceira", "Dor", "Febre"],
+        "medications": ["Aciclovir", "Valaciclovir", "Famciclovir", "Gabapentina", "Pregabalina"],
+        "medical_specialty": "Dermatologia",
+    },
+    "Celulite infecciosa": {
+        "icd10": "L03.90",
+        "symptoms": ["Vermelhidão", "Inchaço", "Calor", "Dor", "Febre"],
+        "medications": ["Cefalexina", "Dicloxacilina", "Clindamicina", "Cefazolina", "Doxiciclina"],
+        "medical_specialty": "Dermatologia",
+    },
+    "Doença de Lyme": {
+        "icd10": "A69.20",
+        "symptoms": ["Erupção cutânea", "Febre", "Fadiga", "Dor articular", "Dor de cabeça"],
+        "medications": ["Doxiciclina", "Amoxicilina", "Cefuroxima", "Ceftriaxona", "Azitromicina"],
+        "medical_specialty": "Doenças Infecciosas",
+    },
+    "Dengue": {
+        "icd10": "A90",
+        "symptoms": ["Febre", "Dor de cabeça", "Dor articular", "Dores musculares", "Erupção cutânea"],
+        "medications": ["Paracetamol", "Líquidos intravenosos", "Cuidados de suporte", "Hidratação"],
+        "medical_specialty": "Doenças Infecciosas",
+    },
+    "Mononucleose infecciosa": {
+        "icd10": "B27.90",
+        "symptoms": ["Dor de garganta", "Febre", "Fadiga", "Linfonodos inchados", "Dor de cabeça"],
+        "medications": ["Paracetamol", "Ibuprofeno", "Cuidados de suporte", "Hidratação"],
+        "medical_specialty": "Doenças Infecciosas",
+    },
+    "Gastroenterite viral": {
+        "icd10": "A08.4",
+        "symptoms": ["Diarréia", "Vômito", "Náusea", "Dor abdominal", "Febre"],
+        "medications": ["Líquidos intravenosos", "Loperamida", "Hidratação", "Probióticos", "Cuidados de suporte"],
+        "medical_specialty": "Doenças Infecciosas",
+    },
+    "Doença hepática gordurosa não alcoólica": {
+        "icd10": "K76.0",
+        "symptoms": ["Fadiga", "Dor abdominal", "Fraqueza", "Icterícia"],
+        "medications": ["Resmetirom", "Vitamina E", "Pioglitazona", "Semaglutida", "Liraglutida"],
+        "medical_specialty": "Gastroenterologia",
+    },
+    "Síndrome do túnel do carpo": {
+        "icd10": "G56.00",
+        "symptoms": ["Dormência", "Formigamento", "Dor", "Fraqueza", "Sensação de queimação"],
+        "medications": ["Ibuprofeno", "Naproxeno", "Injeção de corticosteroide", "Tala de punho", "Cirurgia"],
+        "medical_specialty": "Ortopedia",
     },
 }

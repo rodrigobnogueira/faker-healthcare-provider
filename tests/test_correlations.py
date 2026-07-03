@@ -1,10 +1,28 @@
 """Tests for correlated clinical data generation."""
 
+import re
+
 import pytest
 from faker import Faker
 
 from faker_healthcare import HealthcareProvider
 from faker_healthcare.disease_correlations import DISEASE_CORRELATIONS
+
+
+# ICD-10 codes follow a letter + two digits, optionally a dot and 1-3 more chars (e.g. E11.9, I10, C50.919).
+ICD10_PATTERN = re.compile(r"^[A-Z]\d{2}(\.\d{1,3})?$")
+
+# Conditions added in 2.2.0, keyed by their (universal) ICD-10 code.
+NEW_CONDITIONS_2_2_0 = {
+    "Shingles": "B02.9",
+    "Cellulitis": "L03.90",
+    "Lyme Disease": "A69.20",
+    "Dengue Fever": "A90",
+    "Infectious Mononucleosis": "B27.90",
+    "Viral Gastroenteritis": "A08.4",
+    "Nonalcoholic Fatty Liver Disease": "K76.0",
+    "Carpal Tunnel Syndrome": "G56.00",
+}
 
 
 @pytest.fixture
@@ -149,3 +167,31 @@ class TestDataIntegrity:
         """Test that all diseases have at least one medication."""
         for disease, data in DISEASE_CORRELATIONS.items():
             assert len(data["medications"]) >= 1, f"Disease '{disease}' has no medications"
+
+    def test_all_icd10_codes_well_formed(self) -> None:
+        """Test that every ICD-10 code matches the expected WHO ICD-10 format."""
+        for disease, data in DISEASE_CORRELATIONS.items():
+            assert ICD10_PATTERN.match(data["icd10"]), f"Disease '{disease}' has malformed ICD-10 code '{data['icd10']}'"
+
+
+class TestNewConditions:
+    """Tests for the conditions added in 2.2.0."""
+
+    def test_new_conditions_present_with_correct_codes(self) -> None:
+        """Each new condition is registered with its verified ICD-10 code."""
+        for disease, icd10 in NEW_CONDITIONS_2_2_0.items():
+            assert disease in DISEASE_CORRELATIONS, f"New condition '{disease}' missing from correlations"
+            assert DISEASE_CORRELATIONS[disease]["icd10"] == icd10, f"'{disease}' has unexpected ICD-10 code"
+
+    @pytest.mark.parametrize("disease", sorted(NEW_CONDITIONS_2_2_0))
+    def test_new_condition_patient_scenario_is_correlated(self, faker: Faker, disease: str) -> None:
+        """patient_scenario for each new condition returns internally consistent, correlated data."""
+        scenario = faker.patient_scenario(disease=disease)
+        data = DISEASE_CORRELATIONS[disease]
+        assert scenario["disease"] == disease
+        assert scenario["icd10"] == data["icd10"]
+        assert scenario["medical_specialty"] == data["medical_specialty"]
+        assert scenario["symptoms"], f"'{disease}' scenario produced no symptoms"
+        assert scenario["medications"], f"'{disease}' scenario produced no medications"
+        assert all(s in data["symptoms"] for s in scenario["symptoms"])
+        assert all(m in data["medications"] for m in scenario["medications"])

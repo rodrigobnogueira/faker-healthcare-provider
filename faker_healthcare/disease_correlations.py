@@ -1,7 +1,7 @@
 """
 Disease Correlations Data
 
-This module contains the DISEASE_CORRELATIONS dictionary mapping all 150 diseases
+This module contains the DISEASE_CORRELATIONS dictionary mapping all 158 diseases
 to their symptoms, ICD-10 codes, medications, and primary specialties.
 
 Data sourced from WHO ICD-10 classification.
@@ -913,5 +913,53 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["Seizures", "Loss of Consciousness", "Convulsions", "Confusion", "Uncontrolled Movements"],
         "medications": ["Levetiracetam", "Valproic Acid", "Carbamazepine", "Lamotrigine", "Topiramate"],
         "medical_specialty": "Neurology",
+    },
+    "Shingles": {
+        "icd10": "B02.9",
+        "symptoms": ["Rash", "Burning Sensation", "Itching", "Pain", "Fever"],
+        "medications": ["Acyclovir", "Valacyclovir", "Famciclovir", "Gabapentin", "Pregabalin"],
+        "medical_specialty": "Dermatology",
+    },
+    "Cellulitis": {
+        "icd10": "L03.90",
+        "symptoms": ["Redness", "Swelling", "Warmth", "Pain", "Fever"],
+        "medications": ["Cephalexin", "Dicloxacillin", "Clindamycin", "Cefazolin", "Doxycycline"],
+        "medical_specialty": "Dermatology",
+    },
+    "Lyme Disease": {
+        "icd10": "A69.20",
+        "symptoms": ["Rash", "Fever", "Fatigue", "Joint Pain", "Headache"],
+        "medications": ["Doxycycline", "Amoxicillin", "Cefuroxime", "Ceftriaxone", "Azithromycin"],
+        "medical_specialty": "Infectious Disease",
+    },
+    "Dengue Fever": {
+        "icd10": "A90",
+        "symptoms": ["Fever", "Headache", "Joint Pain", "Muscle Aches", "Rash"],
+        "medications": ["Acetaminophen", "IV Fluids", "Supportive Care", "Hydration"],
+        "medical_specialty": "Infectious Disease",
+    },
+    "Infectious Mononucleosis": {
+        "icd10": "B27.90",
+        "symptoms": ["Sore Throat", "Fever", "Fatigue", "Swollen Lymph Nodes", "Headache"],
+        "medications": ["Acetaminophen", "Ibuprofen", "Supportive Care", "Hydration"],
+        "medical_specialty": "Infectious Disease",
+    },
+    "Viral Gastroenteritis": {
+        "icd10": "A08.4",
+        "symptoms": ["Diarrhea", "Vomiting", "Nausea", "Abdominal Pain", "Fever"],
+        "medications": ["IV Fluids", "Loperamide", "Hydration", "Probiotics", "Supportive Care"],
+        "medical_specialty": "Infectious Disease",
+    },
+    "Nonalcoholic Fatty Liver Disease": {
+        "icd10": "K76.0",
+        "symptoms": ["Fatigue", "Abdominal Pain", "Weakness", "Jaundice"],
+        "medications": ["Resmetirom", "Vitamin E", "Pioglitazone", "Semaglutide", "Liraglutide"],
+        "medical_specialty": "Gastroenterology",
+    },
+    "Carpal Tunnel Syndrome": {
+        "icd10": "G56.00",
+        "symptoms": ["Numbness", "Tingling", "Pain", "Weakness", "Burning Sensation"],
+        "medications": ["Ibuprofen", "Naproxen", "Corticosteroid Injection", "Wrist Splint", "Surgery"],
+        "medical_specialty": "Orthopedics",
     },
 }
