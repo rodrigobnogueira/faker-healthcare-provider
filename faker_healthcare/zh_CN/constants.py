@@ -243,7 +243,6 @@ BRAND_DRUGS: tuple[str, ...] = (
     "达必妥 (Dupixent)",
     "茁乐 (Xolair)",
     "Skyrizi",
-    "Tapezentis",
     "安吉优 (Entyvio)",
 )
 

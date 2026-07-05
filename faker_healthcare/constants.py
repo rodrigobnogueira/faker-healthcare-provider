@@ -244,7 +244,6 @@ BRAND_DRUGS: tuple[str, ...] = (
     "Dupixent",
     "Xolair",
     "Skyrizi",
-    "Tapezentis",
     "Entyvio",
 )
 
