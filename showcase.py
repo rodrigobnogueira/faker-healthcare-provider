@@ -70,7 +70,7 @@ def showcase_medications() -> None:
     """Demonstrate medication generation."""
     print_header("Medications")
 
-    print_subheader("Brand Name Drugs")
+    print_subheader("Brand Name Drugs (fictitious)")
     for _ in range(5):
         print(f"  • {fake.brand_drug()}")
 

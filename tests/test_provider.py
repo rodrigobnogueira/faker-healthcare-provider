@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from faker import Faker
 
@@ -46,7 +48,7 @@ class TestHealthcareProvider:
         for _ in range(100):
             result: str = faker.brand_drug()
             assert isinstance(result, str)
-            assert result in HealthcareProvider.brand_drugs
+            assert re.fullmatch(r"[A-Z][a-z]{4,13}", result), result
 
     def test_symptom(self, faker: Faker) -> None:
         for _ in range(100):
@@ -90,3 +92,38 @@ class TestHealthcareProvider:
             assert isinstance(result, str)
             assert "(" in result
             assert ")" in result
+
+
+# Real brands kept ONLY here for collision QA — never shipped in the package.
+_FAMOUS_REAL_BRANDS = {
+    "lipitor", "prozac", "ozempic", "humira", "keytruda", "wegovy", "jardiance",
+    "eliquis", "xanax", "zoloft", "mounjaro", "norvasc", "synthroid", "glucophage",
+    "prilosec", "zocor", "plavix", "skyrizi", "entyvio", "taltz", "cosentyx",
+    "dupixent", "xolair", "ventolin", "advil", "tylenol", "augmentin", "nexium",
+    "lantus", "januvia",
+}
+
+# WHO INN class stems a generated brand must never end with.
+_INN_STEMS = (
+    "mab", "nib", "pril", "sartan", "statin", "vir", "prazole", "dipine",
+    "olol", "cillin", "mycin", "gliptin", "floxacin", "caine", "profen", "parin",
+)
+
+
+class TestBrandGenerator:
+    def test_pattern_uniqueness_and_no_real_brands(self, faker: Faker) -> None:
+        names = [faker.brand_drug() for _ in range(1000)]
+        for name in names:
+            assert re.fullmatch(r"[A-Z][a-z]{4,13}", name), name
+            assert name.lower() not in _FAMOUS_REAL_BRANDS
+            assert not any(name.lower().endswith(stem) for stem in _INN_STEMS), name
+        assert len(set(names)) > 300
+
+    def test_reproducible_under_seed(self) -> None:
+        first = Faker()
+        first.add_provider(HealthcareProvider)
+        first.seed_instance(4242)
+        second = Faker()
+        second.add_provider(HealthcareProvider)
+        second.seed_instance(4242)
+        assert [first.brand_drug() for _ in range(25)] == [second.brand_drug() for _ in range(25)]

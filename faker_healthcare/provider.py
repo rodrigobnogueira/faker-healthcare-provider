@@ -5,7 +5,10 @@ from faker.providers import BaseProvider, ElementsType
 from .constants import (
     ALLERGIES,
     BLOOD_TYPES,
-    BRAND_DRUGS,
+    BRAND_FORBIDDEN_ENDINGS,
+    BRAND_INFIXES,
+    BRAND_PREFIXES,
+    BRAND_SUFFIXES,
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
@@ -82,8 +85,6 @@ class HealthcareProvider(BaseProvider):
 
     hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
 
-    brand_drugs: ElementsType[str] = BRAND_DRUGS
-
     blood_types: ElementsType[str] = BLOOD_TYPES
 
     allergies: ElementsType[str] = ALLERGIES
@@ -119,7 +120,22 @@ class HealthcareProvider(BaseProvider):
         return self.random_element(self.generic_drugs)
 
     def brand_drug(self) -> str:
-        return self.random_element(self.brand_drugs)
+        """Return a fictitious brand-style drug name.
+
+        The name is generated from invented morphemes (never a real trademark)
+        and deliberately avoids WHO INN stems, so it cannot be mistaken for a
+        generic substance name. Any resemblance to a real brand is coincidental.
+        """
+        name = ""
+        for _ in range(12):
+            parts = [self.random_element(BRAND_PREFIXES)]
+            if self.generator.random.random() < 0.4:
+                parts.append(self.random_element(BRAND_INFIXES))
+            parts.append(self.random_element(BRAND_SUFFIXES))
+            name = "".join(parts)
+            if not name.lower().endswith(BRAND_FORBIDDEN_ENDINGS):
+                break
+        return name
 
     def symptom(self, disease: str | None = None) -> str:
         """Return a symptom.

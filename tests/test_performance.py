@@ -46,7 +46,6 @@ class TestOptimization:
 
         expected_attrs = [
             "hospital_departments",
-            "brand_drugs",
             "blood_types",
             "allergies",
             "medical_procedures",
@@ -78,7 +77,6 @@ class TestOptimization:
         locales = ["en (base)", "de_DE", "es_ES", "fr_FR", "pt_BR", "zh_CN"]
         constant_names = [
             "HOSPITAL_DEPARTMENTS",
-            "BRAND_DRUGS",
             "BLOOD_TYPES",
             "ALLERGIES",
             "MEDICAL_PROCEDURES",

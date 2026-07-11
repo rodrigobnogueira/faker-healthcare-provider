@@ -641,7 +641,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Diverticulitis": {
         "icd10": "K57.92",
         "symptoms": ["Abdominal Pain", "Fever", "Nausea", "Constipation", "Diarrhea"],
-        "medications": ["Ciprofloxacin", "Metronidazole", "Augmentin", "Ibuprofen", "Acetaminophen"],
+        "medications": ["Ciprofloxacin", "Metronidazole", "Amoxicillin-Clavulanate", "Ibuprofen", "Acetaminophen"],
         "medical_specialty": "Gastroenterology",
     },
     "Appendicitis": {
@@ -773,7 +773,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Acute Sinusitis": {
         "icd10": "J01.90",
         "symptoms": ["Facial Pain", "Nasal Congestion", "Headache", "Fever", "Cough"],
-        "medications": ["Amoxicillin", "Augmentin", "Decongestants", "Nasal Steroids", "Pain Relievers"],
+        "medications": ["Amoxicillin", "Amoxicillin-Clavulanate", "Decongestants", "Nasal Steroids", "Pain Relievers"],
         "medical_specialty": "Otolaryngology",
     },
     "Chronic Sinusitis": {

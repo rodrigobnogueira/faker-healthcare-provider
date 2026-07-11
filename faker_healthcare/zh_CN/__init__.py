@@ -5,11 +5,11 @@ from ..types import DiseaseData
 from .constants import (
     ALLERGIES,
     BLOOD_TYPES,
-    BRAND_DRUGS,
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
     VITAL_SIGNS,
+    ZH_BRAND_CHARS,
 )
 
 
@@ -22,9 +22,18 @@ class Provider(BaseHealthcareProvider):
         return DISEASE_CORRELATIONS
 
     hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
-    brand_drugs: ElementsType[str] = BRAND_DRUGS
     blood_types: ElementsType[str] = BLOOD_TYPES
     allergies: ElementsType[str] = ALLERGIES
     medical_procedures: ElementsType[str] = MEDICAL_PROCEDURES
     insurance_plans: ElementsType[str] = INSURANCE_PLANS
     vital_signs: ElementsType[str] = VITAL_SIGNS
+
+    def brand_drug(self) -> str:
+        """Return a fictitious Chinese-style brand name paired with a Latin one.
+
+        The Chinese characters are drawn from a pool of generic pharmaceutical
+        characters and combined into an invented name (never a real trademark);
+        the Latin part reuses the base generator. Any resemblance is coincidental.
+        """
+        chars = "".join(self.random_elements(ZH_BRAND_CHARS, length=self.random_int(2, 3), unique=True))
+        return f"{chars} ({super().brand_drug()})"

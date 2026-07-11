@@ -50,6 +50,8 @@ When you add or edit a disease:
 - `symptoms` must be symptoms that condition actually causes.
 - `medications` must be treatments actually used for that condition (drugs or, following the
   existing pattern, interventions like `Surgery`, `IV Fluids`, `Wrist Splint`, `No Medications`).
+  Use real **generic INN** names (public domain), **never brand/trademark names** — brand names are
+  produced separately by `brand_drug()`.
 - `medical_specialty` must be the specialty that manages the condition, and should reuse an
   existing specialty string already present in the catalog.
 
@@ -88,6 +90,13 @@ visible, wrong-looking record.
   documentation. Newer-than-your-training drugs/codes can be real — confirm, don't assume fake.
 - When you add a condition, append it to the end of each `disease_correlations.py` (order is not
   significant) and update the "N diseases" count in each module docstring.
+- **Brand names are fictitious and generated.** `brand_drug()` builds names from invented morphemes
+  (`BRAND_PREFIXES` / `BRAND_INFIXES` / `BRAND_SUFFIXES`, refusing endings in `BRAND_FORBIDDEN_ENDINGS`
+  so they can't look like a generic; zh_CN adds a Chinese-character path). **Never add a real trademark**
+  anywhere — not to the morpheme pools, not to `medications`.
+- **Diagnostic codes are kept as reference data.** ICD-10-CM codes come from CDC/NCHS (distributed free
+  by the U.S. government); base WHO ICD-10 codes are used under **CC BY-ND 3.0 IGO** — reproduce codes
+  verbatim, keep the WHO attribution in the module docstrings and README, and never modify a code.
 - Add focused tests that extend the existing patterns (`TestNewConditions` in
   `test_correlations.py`, `TestLocaleParity` in `test_locales.py`).
 

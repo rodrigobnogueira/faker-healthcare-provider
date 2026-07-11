@@ -1,4 +1,5 @@
 import importlib
+import re
 
 import pytest
 from faker import Faker
@@ -95,6 +96,15 @@ class TestLocaleProviders:
         drug = fake.brand_drug()
         assert isinstance(drug, str)
         assert len(drug) > 0
+
+    def test_zh_brand_drug_has_chinese_latin_shape(self) -> None:
+        from faker_healthcare.zh_CN import Provider
+
+        fake = Faker("zh_CN")
+        fake.add_provider(Provider)
+        for _ in range(50):
+            drug = fake.brand_drug()
+            assert re.fullmatch(r"[一-鿿]{2,3} \([A-Z][a-z]{4,13}\)", drug), drug
 
     def test_symptom_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
         fake, locale = fake_locale

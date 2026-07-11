@@ -5,7 +5,6 @@ from ..types import DiseaseData
 from .constants import (
     ALLERGIES,
     BLOOD_TYPES,
-    BRAND_DRUGS,
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
@@ -22,7 +21,6 @@ class Provider(BaseHealthcareProvider):
         return DISEASE_CORRELATIONS
 
     hospital_departments: ElementsType[str] = HOSPITAL_DEPARTMENTS
-    brand_drugs: ElementsType[str] = BRAND_DRUGS
     blood_types: ElementsType[str] = BLOOD_TYPES
     allergies: ElementsType[str] = ALLERGIES
     medical_procedures: ElementsType[str] = MEDICAL_PROCEDURES
