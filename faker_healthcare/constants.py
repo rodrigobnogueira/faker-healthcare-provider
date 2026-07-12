@@ -53,13 +53,13 @@ BRAND_PREFIXES: tuple[str, ...] = (
 
 BRAND_INFIXES: tuple[str, ...] = (
     "ra", "pra", "lo", "vi", "ze", "na", "di", "co", "xa", "mi",
-    "ta", "se", "va", "ly", "no", "ri", "du", "be", "ga", "sy",
+    "ta", "so", "va", "ly", "no", "ri", "du", "be", "go", "sy",
 )
 
 BRAND_SUFFIXES: tuple[str, ...] = (
     "ex", "en", "ol", "in", "yl", "zen", "via", "dyn", "mox", "pral",
-    "vor", "nix", "quel", "dara", "vue", "tiva", "zia", "mira", "xen",
-    "lor", "cor", "dex", "sen", "tor", "vane", "ric", "pex", "don",
+    "vor", "nix", "quel", "dara", "vue", "tiva", "vex", "mira", "xen",
+    "lor", "cor", "dex", "sen", "tor", "vane", "ric", "plex", "don",
     "fen", "gis",
 )
 
