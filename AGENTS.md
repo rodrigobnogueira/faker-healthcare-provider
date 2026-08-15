@@ -17,6 +17,8 @@ changes small, data-focused, and easy to verify.
   `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`, and
   `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`, `test_performance.py`.
+- `CONTRIBUTING.md` — the human-facing summary of these rules; when a rule here changes,
+  update it in the same change so the two cannot drift.
 
 ## Data Shapes (do not drift)
 
@@ -113,9 +115,17 @@ Create a venv and run the full suite (including the performance suite) before op
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e . pytest faker
+.venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m mypy --ignore-missing-imports --no-strict-optional .
 ```
+
+- **CI must run every tool the `dev` extra declares.** A declared-but-unenforced tool is
+  how lint drift lands on `main` — either wire it into `.github/workflows/tests.yml` or
+  remove it from the extra. Keep the arguments identical to `.pre-commit-config.yaml` so
+  the hooks and CI cannot disagree about what "clean" means.
 
 ## Publishing a Release
 
@@ -137,3 +147,7 @@ Release checklist (the workflow automates build/upload, not the judgment steps):
 - Run `python -m pytest`, `python -m build`, and `python -m twine check dist/*` locally first.
 - Commit the version bump, then create and push the matching `vX.Y.Z` tag.
 - After publishing, verify the new version on PyPI and smoke-test an install from a clean env.
+- **After a repo or package rename, fix every metadata surface in the same change** —
+  `pyproject.toml` `[project.urls]`, README badges and links, the GitHub About/description,
+  and the docs. PyPI only refreshes project metadata when a release is published, so pair the
+  URL fix with a patch release; otherwise the registry keeps serving the old, dead links.

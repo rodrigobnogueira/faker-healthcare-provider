@@ -23,32 +23,16 @@ def _load_correlations(locale: str) -> dict:
     return module.DISEASE_CORRELATIONS
 
 
-def _get_provider_for_locale(locale: str):
+def _get_provider_for_locale(locale: str) -> type[HealthcareProvider]:
     """Get the appropriate provider class for a given locale."""
     if locale == "en_US":
         return HealthcareProvider
-    elif locale == "pt_BR":
-        from faker_healthcare.pt_BR import Provider
-
-        return Provider
-    elif locale == "es_ES":
-        from faker_healthcare.es_ES import Provider
-
-        return Provider
-    elif locale == "zh_CN":
-        from faker_healthcare.zh_CN import Provider
-
-        return Provider
-    elif locale == "fr_FR":
-        from faker_healthcare.fr_FR import Provider
-
-        return Provider
-    elif locale == "de_DE":
-        from faker_healthcare.de_DE import Provider
-
-        return Provider
-    else:
+    if locale not in SUPPORTED_LOCALES:
         raise ValueError(f"Unsupported locale: {locale}")
+    # Imported lazily, one locale at a time, so the test never pulls every
+    # locale package into sys.modules at import time.
+    module = importlib.import_module(f"faker_healthcare.{locale}")
+    return module.Provider
 
 
 @pytest.fixture(params=SUPPORTED_LOCALES)

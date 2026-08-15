@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faker-healthcare-provider"
-version = "2.3.1"
+version = "2.3.2"
 description = "Generate realistic healthcare test data in 6 languages (en, es, pt, zh, fr, de): 150+ diseases with correlated ICD-10 codes, medications, symptoms, and more"
 readme = "README.md"
 authors = [{name = "Rodrigo Nogueira", email = "rodrigo.b.nogueira@gmail.com"}]
@@ -35,8 +35,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rodrigobnogueira/faker-healthcare"
-Repository = "https://github.com/rodrigobnogueira/faker-healthcare"
+Homepage = "https://github.com/rodrigobnogueira/faker-healthcare-provider"
+Repository = "https://github.com/rodrigobnogueira/faker-healthcare-provider"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -51,3 +51,9 @@ ignore = []
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
+
+[tool.ruff.format]
+# Recent ruff also formats Python blocks embedded in Markdown. The README lines up
+# the trailing comments in its examples on purpose, so keep prose out of the formatter
+# (this also matches the ruff-format pre-commit hook, which only sees Python files).
+exclude = ["*.md"]
