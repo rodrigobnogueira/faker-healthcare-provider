@@ -51,3 +51,9 @@ ignore = []
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
+
+[tool.ruff.format]
+# Recent ruff also formats Python blocks embedded in Markdown. The README lines up
+# the trailing comments in its examples on purpose, so keep prose out of the formatter
+# (this also matches the ruff-format pre-commit hook, which only sees Python files).
+exclude = ["*.md"]
