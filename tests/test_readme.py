@@ -94,7 +94,12 @@ def test_documented_locale_pattern_returns_localized_data(locale: str) -> None:
 
 
 def test_readme_documents_only_real_methods() -> None:
-    """Every method in the "Available Methods" table must exist and be callable."""
+    """Every method in the "Available Methods" table must exist and be callable.
+
+    "Returned nothing" is `None` or an empty container, NOT falsiness: `0` is a correct
+    and common answer from `alcohol_units_per_week()` (about a fifth of adults do not
+    drink), and a truthiness check would have failed on it one run in five.
+    """
     documented = METHOD_ROW_RE.findall(README_TEXT)
     assert documented, "no method table rows found in README.md"
 
@@ -103,4 +108,7 @@ def test_readme_documents_only_real_methods() -> None:
     missing = [name for name in documented if not hasattr(fake, name)]
     assert not missing, f"README documents methods that do not exist: {missing}"
     for name in documented:
-        assert getattr(fake, name)(), f"README method '{name}' returned nothing"
+        result = getattr(fake, name)()
+        assert result is not None, f"README method '{name}' returned None"
+        if isinstance(result, (str, list, dict, tuple)):
+            assert len(result) > 0, f"README method '{name}' returned nothing"

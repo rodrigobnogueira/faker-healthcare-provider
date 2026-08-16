@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 import pytest
 from conftest import load_brand_name_generator
@@ -118,6 +119,98 @@ class TestHealthcareProvider:
             assert isinstance(result, str)
             assert "(" in result
             assert ")" in result
+
+
+class TestMeasurementShapes:
+    """The measurement API returns TypedDicts; this pins the keys and their types.
+
+    What the numbers mean, and that they agree with each other and with the diagnosis,
+    is `tests/test_clinical_values.py`. This is the shape contract a consumer unpacks.
+    """
+
+    def test_blood_pressure(self, faker: Faker) -> None:
+        pressure = faker.blood_pressure()
+        assert set(pressure) == {"systolic", "diastolic", "unit"}
+        assert isinstance(pressure["systolic"], int)
+        assert isinstance(pressure["diastolic"], int)
+        assert isinstance(pressure["unit"], str)
+
+    def test_vital_sign_measurement(self, faker: Faker) -> None:
+        measurement = faker.vital_sign_measurement()
+        assert set(measurement) == {"name", "value", "unit"}
+        assert isinstance(measurement["name"], str)
+        assert isinstance(measurement["value"], (int, float))
+        assert isinstance(measurement["unit"], str)
+
+    def test_vital_sign_measurements(self, faker: Faker) -> None:
+        measurements = faker.vital_sign_measurements()
+        assert len(measurements) == 6
+        assert all(set(measurement) == {"name", "value", "unit"} for measurement in measurements)
+
+    def test_body_measurements(self, faker: Faker) -> None:
+        body = faker.body_measurements()
+        assert set(body) == {"height_cm", "weight_kg", "bmi"}
+        assert all(isinstance(value, float) for value in body.values())
+
+    def test_alcohol(self, faker: Faker) -> None:
+        units = faker.alcohol_units_per_week()
+        assert isinstance(units, int)
+        assert isinstance(faker.alcohol_intake_category(units=units), str)
+
+    def test_lab_result(self, faker: Faker) -> None:
+        result = faker.lab_result()
+        assert set(result) == {"analyte", "value", "unit", "reference_low", "reference_high", "flag"}
+        assert isinstance(result["analyte"], str)
+        assert isinstance(result["value"], (int, float))
+        assert isinstance(result["flag"], str)
+
+    def test_lab_panel(self, faker: Faker) -> None:
+        panel = faker.lab_panel()
+        assert panel
+        assert all(set(result) == {"analyte", "value", "unit", "reference_low", "reference_high", "flag"} for result in panel)
+
+
+class TestRecordShapes:
+    """The shapes the records half returns; what the values MEAN is `test_records.py`."""
+
+    def test_medication_order(self, faker: Faker) -> None:
+        order = faker.medication_order()
+        assert set(order) == {"medication", "dose", "unit", "route", "frequency", "status"}
+        assert isinstance(order["medication"], str)
+        assert isinstance(order["dose"], (int, float))
+        assert all(isinstance(order[key], str) for key in ("unit", "route", "frequency", "status"))
+
+    def test_medication_orders(self, faker: Faker) -> None:
+        orders = faker.medication_orders()
+        assert orders
+        assert all(set(order) == {"medication", "dose", "unit", "route", "frequency", "status"} for order in orders)
+
+    def test_assessment_score(self, faker: Faker) -> None:
+        assessment = faker.assessment_score()
+        assert set(assessment) == {"instrument", "score", "max_score", "severity"}
+        assert isinstance(assessment["instrument"], str)
+        assert isinstance(assessment["score"], int)
+        assert isinstance(assessment["max_score"], int)
+        assert isinstance(assessment["severity"], str)
+
+    def test_nhs_number(self, faker: Faker) -> None:
+        number = faker.nhs_number()
+        assert isinstance(number, str)
+        assert re.fullmatch(r"\d{3} \d{3} \d{4}", number), number
+
+    def test_patient(self, faker: Faker) -> None:
+        patient = faker.patient()
+        assert set(patient) == {"disease", "icd10", "symptoms", "medications", "medical_specialty", "sex", "age", "date_of_birth"}
+        assert patient["sex"] in ("male", "female")
+        assert isinstance(patient["age"], int)
+        assert isinstance(patient["date_of_birth"], date)
+
+    def test_patient_record(self, faker: Faker) -> None:
+        record = faker.patient_record()
+        assert {"vital_signs", "lab_panel", "medication_orders", "sex", "age", "date_of_birth", "disease", "icd10"} <= set(record)
+        assert isinstance(record["vital_signs"], list)
+        assert isinstance(record["lab_panel"], list)
+        assert isinstance(record["medication_orders"], list)
 
 
 # Real brands kept ONLY here for collision QA — never shipped in the package.

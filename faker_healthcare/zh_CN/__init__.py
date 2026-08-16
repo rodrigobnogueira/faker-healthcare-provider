@@ -1,7 +1,10 @@
+from collections.abc import Mapping
+
 from faker.providers import ElementsType
 
 from .. import HealthcareProvider as BaseHealthcareProvider
 from ..types import DiseaseData
+from .clinical_labels import CLINICAL_LABELS, MEDICATION_NAMES
 from .constants import (
     ALLERGIES,
     BLOOD_TYPES,
@@ -29,6 +32,12 @@ class Provider(BaseHealthcareProvider):
     insurance_plans: ElementsType[str] = INSURANCE_PLANS
     vital_signs: ElementsType[str] = VITAL_SIGNS
     non_drug_interventions: ElementsType[str] = NON_DRUG_INTERVENTIONS
+
+    # Words only. The units, reference intervals, dose ladders and assessment ranges
+    # behind the measurement, prescribing and assessment APIs are locale-neutral and stay
+    # in faker_healthcare/clinical_values.py, prescribing.py and assessments.py.
+    clinical_labels: Mapping[str, str] = CLINICAL_LABELS
+    medication_names: Mapping[str, str] = MEDICATION_NAMES
 
     zh_brand_names: ElementsType[str] = ZH_BRAND_NAMES
 

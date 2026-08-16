@@ -17,13 +17,36 @@ changes small, data-focused, and easy to verify.
   **generated**; the screened brand-name catalogues. Never edit them by hand.
 - `scripts/generate_brand_names.py` — the screens and the review record that produce those
   two modules. This is the file you edit when a brand name has to change.
-- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` TypedDicts (the data shapes).
+- `faker_healthcare/clinical_values.py` — the **locale-neutral** numeric tables: vital-sign
+  and lab-analyte definitions (units, reference intervals, bounds, precision) and the
+  ICD-10-keyed `CONDITION_LAB_EFFECTS` / `CONDITION_VITAL_EFFECTS` correlations. No
+  translated text lives here, and it is never duplicated per locale.
+- `faker_healthcare/prescribing.py` — the **locale-neutral** dose ladders: per substance
+  ID, the dispensed strengths, the unit, the route and the plausible frequencies, plus the
+  route/frequency/order-status IDs. Never duplicated per locale.
+- `faker_healthcare/assessments.py` — the **locale-neutral** definitions of the six scored
+  instruments (maximum, severity bands, cut-off, which conditions use which). Read its
+  docstring before touching it: it carries the copyright boundary that forbids item text.
+- `faker_healthcare/identifiers.py` — generated patient identifiers and their check-digit
+  arithmetic (currently the NHS Number, Modulus 11), and the reserved-test-range rule.
+- `faker_healthcare/clinical_labels.py` and `faker_healthcare/<locale>/clinical_labels.py` —
+  the display words for those IDs: `CLINICAL_LABELS` (analyte and vital names, the
+  low/normal/high flags, the alcohol categories, the administration routes, the dosing
+  frequencies, the medication-order statuses, the assessment severity bands) and
+  `MEDICATION_NAMES` (substance ID → the spelling that locale's catalogue uses). Every
+  locale defines the same key set for both.
+- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` / `Patient` /
+  `PatientRecord` / measurement, order and assessment TypedDicts (the data shapes).
+  Optional keys use the two-class TypedDict form, not `typing.NotRequired`, because the
+  package supports Python 3.10.
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
-  `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`, and
-  `disease_correlations.py`.
+  `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`,
+  `clinical_labels.py`, and `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
-  `test_performance.py`, `test_readme.py`, and `conftest.py` (which loads the generator
-  script so the tests re-run its screens instead of restating them).
+  `test_clinical_values.py`, `test_records.py`, `test_performance.py`, `test_readme.py`,
+  and `conftest.py`
+  (which loads the generator script so the tests re-run its screens instead of restating
+  them).
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
   `python` block and calls every method the "Available Methods" table lists. Change a public
   method and the README changes with it, in the same PR.
@@ -94,10 +117,114 @@ When you add or edit a disease:
 visible, wrong-looking record.
 
 **An accessor that takes a `disease=` argument must RAISE `ValueError` for a disease it does
-not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications` and
-`patient_scenario` all do. Never fall back to an uncorrelated random draw: the caller asked
-about one condition and would silently receive another condition's data, which is precisely
-the failure this library exists to prevent.
+not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications`,
+`patient_scenario`, `blood_pressure`, `vital_sign_measurement`, `vital_sign_measurements`,
+`lab_result`, `lab_panel`, `medication_order`, `medication_orders`, `assessment_score`,
+`patient` and `patient_record` all do. Never fall back to an uncorrelated random draw: the
+caller asked about one condition and would silently receive another condition's data, which
+is precisely the failure this library exists to prevent. The same applies to an unknown
+measurement or instrument ID (`lab_result(analyte=...)`,
+`vital_sign_measurement(name=...)`, `assessment_score(instrument=...)`).
+
+## Measurements (the locale-neutral half)
+
+`vital_sign()` returns the NAME of a vital sign; the measurement API returns numbers —
+`blood_pressure()`, `vital_sign_measurement()`, `vital_sign_measurements()`,
+`body_measurements()`, `alcohol_units_per_week()`, `alcohol_intake_category()`,
+`lab_result()`, `lab_panel()`. All of it is additive: the string API is unchanged.
+
+- **Reference ranges, units and numeric bounds are locale-invariant, so they live in ONE
+  module.** `faker_healthcare/clinical_values.py` keys them by stable IDs (`heart_rate`,
+  `hba1c`); each locale translates **labels only**, in its own `clinical_labels.py`. Do not
+  copy a range into a locale package: six copies of one number are six chances to disagree
+  about a value that cannot legitimately differ, and the first correction leaves five stale.
+  `tests/test_locales.py::TestClinicalLabelParity` enforces both halves — every locale must
+  define every label key, no locale may ship a `clinical_values.py` or redeclare
+  `vital_definitions` / `lab_definitions`, and the base label key set must equal the union
+  of the numeric tables (so a new analyte cannot ship unnamed).
+- **Units are SI** (mmol/L, µmol/L, g/L, IFCC mmol/mol), stated in the module docstring with
+  the conversions to US conventional units. Do not mix systems: an analyte in the wrong one
+  is indistinguishable from a wrong number.
+- **`CONDITION_LAB_EFFECTS` / `CONDITION_VITAL_EFFECTS` are keyed by ICD-10 code**, not by
+  disease name, because the code is the one field identical in all six locales — that is
+  what makes one table correlate in French and Chinese. A code that is not in the catalogue
+  correlates with nothing; a test iterates every key to prove it exists.
+- **Only add an effect you are confident about.** The bar is the same as for a condition's
+  symptoms: textbook and unambiguous for the *unqualified* condition, not "can occur in
+  severe cases". An empty entry is better than a wrong one — a condition with no entry
+  simply produces in-range values, which is an honest "nothing specific here". The module
+  keeps worked examples of the bar (haemophilia prolongs the APTT, not the INR).
+- **A direction must have somewhere to go.** `measurement_band()` raises rather than
+  returning an in-range value for an impossible direction (nothing can push oxygen
+  saturation above 100%), and a test asserts no shipped effect asks for one.
+- **The generated numbers must agree with each other.** These are invariants, asserted over
+  thousands of seeded draws in `tests/test_clinical_values.py`, not spot-checked:
+  `systolic > diastolic` by at least a plausible pulse pressure (they are one measurement:
+  diastolic is drawn and systolic derived from it); `flag` is derived from the same
+  comparison the caller can make against `reference_low`/`reference_high`; `bmi` is computed
+  from the `height_cm` and `weight_kg` returned beside it.
+- **Model direction, not severity.** An abnormal value is placed by severity tier (mild most
+  of the time, marked rarely) so a diabetic HbA1c reads like a diabetic HbA1c, but nothing
+  here knows how advanced a condition is, and no method should claim to.
+- **Adult data only.** `body_measurements()` refuses a paediatric age rather than
+  extrapolating an adult curve; real growth references (WHO/CDC charts) are a data import,
+  with the licence review that implies. `patient_record()` is bound by the same limit and
+  refuses a paediatric-only condition; `patient()`, which returns no measurements, is not.
+
+## Records (orders, assessments, demographics, identifiers)
+
+`medication_order()`, `medication_orders()`, `assessment_score()`, `nhs_number()`,
+`patient()` and `patient_record()` are the second half of the same design, and the same
+split applies: **numeric tables are locale-neutral, only words are translated.**
+
+- **Dose ladders live once**, in `prescribing.py`, keyed by substance ID. A ladder carries
+  the dispensed strengths, the unit, the **route** and the plausible **frequencies**,
+  because all three belong to the substance: insulin is subcutaneous whatever it treats,
+  methotrexate is weekly. Three independent draws produce "Insulin 500 mg orally four
+  times daily".
+- **Never emit an invented dose.** A substance with no verified adult ladder returns
+  `None` for dose, unit, route and frequency. Cytotoxic chemotherapy is deliberately
+  absent (real doses are body-surface-area based), and so are drug *class* names, which
+  have no dose at all. Adding a ladder means naming an adult dose you can source (BNF or
+  the SmPC), in the same PR as the six `MEDICATION_NAMES` entries for it.
+- **`MEDICATION_NAMES` is the bridge between the two halves.** It maps the substance ID to
+  the exact string that locale's catalogue ships, and `tests/test_locales.py::TestMedicationNameParity`
+  fails if a name is not a medication that locale actually prescribes — which is what makes
+  it checkable rather than a promise. If a locale spells a drug two ways, pick the correct
+  one and accept that the other occurrence goes undosed; do not add a wrong name to widen
+  coverage.
+- **Assessment instruments: the score, never the items.** See below — this one is a legal
+  boundary, not a style preference.
+- **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
+  by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
+  never copied into six catalogues. Constrain only what is unambiguous, and record the
+  reasoning for a condition you deliberately did NOT constrain (breast cancer is not
+  female-only; congenital heart disease and cystic fibrosis are no longer paediatric).
+
+## Assessment Instruments: scores only, never item text
+
+**This is a copyright boundary and it is not negotiable.** `faker_healthcare/assessments.py`
+may contain an instrument's name, its maximum score, its severity bands and its published
+cut-off, and nothing else. It must never contain the items, the questions, the response
+options, the answer wording or the scoring instructions — and neither may a locale package,
+a docstring, a test fixture, the README, or an example.
+
+Most of these instruments are under active copyright; several are licensed commercially and
+their translations are separately licensed works. Reproducing the items would redistribute
+someone else's literary property under a licence its owner never granted, in six languages,
+to everyone who installs the package. A **score** is different in kind: "PHQ-9 = 14" is a
+number about a fictional patient, and it is also exactly what a medical record, a research
+extract or a de-identification test rig actually holds.
+
+- Ship only the six agreed instruments: PHQ-9, GAD-7, MMSE, MADRS, AUDIT-C, CAGE. A seventh
+  is a maintainer decision.
+- The MMSE is **inverted** — a low score is the abnormal one. Anything that places a score
+  by severity must read `higher_is_worse` rather than assuming.
+- Classify conditions by **ICD-10 only**. Do not reference any other diagnostic manual in
+  data, API names, comments or docs.
+- `tests/test_records.py::TestAssessmentBoundary` enforces the shape from both ends: the
+  definition may carry only the five allowed keys and the result only the four. A PR that
+  adds item text fails there, and would be closed anyway.
 
 ## Locale Mechanism
 
@@ -118,6 +245,10 @@ the failure this library exists to prevent.
     all six locales. `INSURANCE_PLANS` is the one deliberate exemption — plan types are
     country-specific. A **new** constant must be added to one of the classification lists in
     `test_locales.py` or the suite fails;
+  - every locale's `CLINICAL_LABELS` has the **same key set** as the base's, none of them
+    empty, none of them duplicated within a locale, and not simply copied from English. The
+    numeric tables behind those labels are the other deliberate exemption: they are
+    locale-neutral by design and a test fails if a locale starts duplicating them;
   - `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug name
     (リオチロニン) reached the Simplified Chinese catalog.
 
@@ -178,8 +309,35 @@ the failure this library exists to prevent.
   `disease_medical_specialty()` — fails CI. The same test asserts every non-English example
   imports that locale's own `Provider`; adding the base `HealthcareProvider` to a
   `Faker('es_ES')` loads the **English** catalog, which is what the README used to teach.
+  It checks each documented method returned something — `None` or an empty container fails,
+  **falsiness does not**: `0` is a correct answer from `alcohol_units_per_week()`, and a
+  truthiness check would have failed on it about one run in five.
 
-## Generated Identifiers (the screened-set rule)
+## Generated Identifiers (the reserved-range rule)
+
+Applies to every **numbered identifier a real authority issues to a real person** — an NHS
+Number today, and whatever comes next.
+
+- **Default to the range the issuing authority reserves for testing.** `nhs_number()`
+  returns a number in the 999 range NHS England never allocates, so a generated identifier
+  cannot be a living patient's. The whole hazard is that a *valid* identifier is by
+  construction one that could belong to someone real, and a synthetic record carrying one
+  can be matched against, or mistaken for, a real record.
+- **Make the unreserved mode explicit at the call site and say why**:
+  `nhs_number(official_test_range=False)`, documented as capable of colliding with a real
+  person's number. Never make it the default, and never make it the only mode.
+- **Implement the check digit from the published specification and cite it** in the module
+  docstring, with the URL. Get the invalid-remainder case right — an NHS stem whose
+  Modulus 11 check digit works out to 10 is never issued and must be redrawn, not
+  truncated into something a validator would reject.
+- **Test against published examples** the code was not written around, and test that a
+  single-digit change stops validating. That is what proves the checksum is the real one
+  rather than an arithmetic look-alike.
+- If an authority publishes **no** reserved range, say so in the docstring and in the PR,
+  and give the caller a way to supply a prefix. Do not quietly generate live-space
+  identifiers by default.
+
+## Generated Names (the screened-set rule)
 
 Applies to every **user-visible identifier this package invents** — a brand name, a product
 name, a facility or plan name, anything a consumer could mistake for a real named thing.
