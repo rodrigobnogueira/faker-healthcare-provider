@@ -1,6 +1,7 @@
 """Tests for correlated clinical data generation."""
 
 import re
+from collections.abc import Callable
 
 import pytest
 from faker import Faker
@@ -146,6 +147,33 @@ class TestBackwardCompatibility:
         result = faker.medication()
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+class TestUnknownDiseaseRaises:
+    """Every accessor that takes a disease must reject an unknown one.
+
+    Falling back to an uncorrelated random draw is worse than failing: the caller
+    asked for data about a specific condition and would silently get data about
+    some other one.
+    """
+
+    ACCESSORS: dict[str, Callable[[Faker, str], object]] = {
+        "icd10_code": lambda f, d: f.icd10_code(disease=d),
+        "symptom": lambda f, d: f.symptom(disease=d),
+        "medication": lambda f, d: f.medication(disease=d),
+        "disease_symptoms": lambda f, d: f.disease_symptoms(d),
+        "medications": lambda f, d: f.medications(d),
+        "patient_scenario": lambda f, d: f.patient_scenario(disease=d),
+    }
+
+    @pytest.mark.parametrize("name", sorted(ACCESSORS))
+    def test_unknown_disease_raises(self, faker: Faker, name: str) -> None:
+        with pytest.raises(ValueError, match="Not A Disease"):
+            self.ACCESSORS[name](faker, "Not A Disease")
+
+    @pytest.mark.parametrize("name", sorted(ACCESSORS))
+    def test_known_disease_still_works(self, faker: Faker, name: str) -> None:
+        assert self.ACCESSORS[name](faker, "Type 2 Diabetes")
 
 
 class TestDataIntegrity:

@@ -135,6 +135,21 @@ class TestLocaleProviders:
         assert "(" in diagnosis
         assert ")" in diagnosis
 
+    def test_unknown_disease_raises_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """No locale may fall back to an uncorrelated draw for an unknown disease."""
+        fake, locale = fake_locale
+        unknown = "Not A Disease"
+        for call in (
+            lambda: fake.icd10_code(disease=unknown),
+            lambda: fake.symptom(disease=unknown),
+            lambda: fake.medication(disease=unknown),
+            lambda: fake.disease_symptoms(unknown),
+            lambda: fake.medications(unknown),
+            lambda: fake.patient_scenario(disease=unknown),
+        ):
+            with pytest.raises(ValueError, match=unknown):
+                call()
+
 
 class TestLocaleSpecificData:
     """Verify all locales load their own locale-specific data."""

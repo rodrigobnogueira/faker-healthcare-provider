@@ -105,10 +105,15 @@ class HealthcareProvider(BaseProvider):
         Args:
             disease: Optional disease name. If provided, returns the correct ICD-10 code for that disease.
                     If None, returns a random ICD-10 code.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations.
         """
-        if disease and disease in self.disease_correlations:
-            return self.disease_correlations[disease]["icd10"]
-        return self.random_element(self.icd10_codes)
+        if disease is None:
+            return self.random_element(self.icd10_codes)
+        if disease not in self.disease_correlations:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+        return self.disease_correlations[disease]["icd10"]
 
     def disease_medical_specialty(self) -> str:
         return self.random_element(self.medical_specialties)
@@ -143,10 +148,15 @@ class HealthcareProvider(BaseProvider):
         Args:
             disease: Optional disease name. If provided, returns a symptom associated with that disease.
                     If None, returns a random symptom.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations.
         """
-        if disease and disease in self.disease_correlations:
-            return self.random_element(self.disease_correlations[disease]["symptoms"])
-        return self.random_element(self.symptoms)
+        if disease is None:
+            return self.random_element(self.symptoms)
+        if disease not in self.disease_correlations:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+        return self.random_element(self.disease_correlations[disease]["symptoms"])
 
     def disease_symptoms(self, disease: str, count: int = 3) -> list[str]:
         """Return multiple symptoms for a specific disease.
@@ -173,12 +183,17 @@ class HealthcareProvider(BaseProvider):
         """Return a medication.
 
         Args:
-            disease: Optional disease name. If provided, returns a medication for that disease.
+            disease: Optional disease name. If provided, returns a treatment for that disease.
                     If None, returns a random medication.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations.
         """
-        if disease and disease in self.disease_correlations:
-            return self.random_element(self.disease_correlations[disease]["medications"])
-        return self.random_element(self.generic_drugs)
+        if disease is None:
+            return self.random_element(self.generic_drugs)
+        if disease not in self.disease_correlations:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+        return self.random_element(self.disease_correlations[disease]["medications"])
 
     def medications(self, disease: str, count: int = 2) -> list[str]:
         """Return multiple medications for a specific disease.
