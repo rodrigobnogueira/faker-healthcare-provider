@@ -8,6 +8,7 @@ from .constants import (
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
+    NON_DRUG_INTERVENTIONS,
     VITAL_SIGNS,
     ZH_BRAND_CHARS,
 )
@@ -27,6 +28,7 @@ class Provider(BaseHealthcareProvider):
     medical_procedures: ElementsType[str] = MEDICAL_PROCEDURES
     insurance_plans: ElementsType[str] = INSURANCE_PLANS
     vital_signs: ElementsType[str] = VITAL_SIGNS
+    non_drug_interventions: ElementsType[str] = NON_DRUG_INTERVENTIONS
 
     def brand_drug(self) -> str:
         """Return a fictitious Chinese-style brand name paired with a Latin one.

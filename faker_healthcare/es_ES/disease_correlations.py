@@ -60,7 +60,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "Ortopedia",
     },
     "Artritis reumatoide": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["Dolor articular", "Hinchazón", "Fatiga", "Debilidad", "Dolores musculares"],
         "medications": ["Metotrexato", "Prednisona", "Adalimumab", "Hidroxicloroquina", "Sulfasalazina"],
         "medical_specialty": "Reumatología",
@@ -91,7 +91,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Hipotiroidismo": {
         "icd10": "E03.9",
-        "symptoms": ["Fatiga", "Pérdida de peso", "Caída del cabello", "Piel seca", "Estreñimiento"],
+        "symptoms": ["Fatiga", "Aumento de peso", "Caída del cabello", "Piel seca", "Estreñimiento"],
         "medications": ["Levotiroxina", "Liotironina", "Tiroides"],
         "medical_specialty": "Endocrinología",
     },
@@ -248,7 +248,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Trastorno del espectro autista": {
         "icd10": "F84.0",
         "symptoms": ["Alteración social", "Dificultades de comunicación", "Comportamientos repetitivos", "Sensibilidades sensoriales", "Intereses restringidos"],
-        "medications": ["Risperidona", "Aripiprazol", "ISRS", "Estimulantes", "Anticonvulsivantes"],
+        "medications": ["Risperidona", "Aripiprazol", "Melatonina"],
         "medical_specialty": "Psiquiatría",
     },
     "Enfermedad de Crohn": {
@@ -745,7 +745,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Incontinencia de esfuerzo": {
         "icd10": "N39.3",
-        "symptoms": ["Fuga de orina al toser", "Estornudar", "Ejercicio", "Levantar", "Reír"],
+        "symptoms": ["Fuga de orina al toser", "Fuga de orina al estornudar", "Fuga de orina al reír", "Fuga de orina durante el ejercicio", "Fuga de orina al levantar peso"],
         "medications": ["Duloxetina", "Crema de estrógenos", "Sin medicamentos", "Ejercicios del suelo pélvico", "Cirugía"],
         "medical_specialty": "Urología",
     },

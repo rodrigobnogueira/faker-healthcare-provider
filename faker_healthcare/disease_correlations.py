@@ -63,7 +63,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "Orthopedics",
     },
     "Rheumatoid Arthritis": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["Joint Pain", "Swelling", "Fatigue", "Weakness", "Muscle Aches"],
         "medications": ["Methotrexate", "Prednisone", "Adalimumab", "Hydroxychloroquine", "Sulfasalazine"],
         "medical_specialty": "Rheumatology",
@@ -94,7 +94,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Hypothyroidism": {
         "icd10": "E03.9",
-        "symptoms": ["Fatigue", "Weight Loss", "Hair Loss", "Dry Skin", "Constipation"],
+        "symptoms": ["Fatigue", "Weight Gain", "Hair Loss", "Dry Skin", "Constipation"],
         "medications": ["Levothyroxine", "Liothyronine", "Thyroid"],
         "medical_specialty": "Endocrinology",
     },
@@ -251,7 +251,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Autism Spectrum Disorder": {
         "icd10": "F84.0",
         "symptoms": ["Social Impairment", "Communication Difficulties", "Repetitive Behaviors", "Sensory Sensitivities", "Restricted Interests"],
-        "medications": ["Risperidone", "Aripiprazole", "SSRIs", "Stimulants", "Anticonvulsants"],
+        "medications": ["Risperidone", "Aripiprazole", "Melatonin"],
         "medical_specialty": "Psychiatry",
     },
     "Crohn's Disease": {
@@ -748,7 +748,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Stress Incontinence": {
         "icd10": "N39.3",
-        "symptoms": ["Urine Leakage with Coughing", "Sneezing", "Exercise", "Lifting", "Laughing"],
+        "symptoms": ["Urine Leakage with Coughing", "Urine Leakage with Sneezing", "Urine Leakage with Laughing", "Urine Leakage During Exercise", "Urine Leakage When Lifting"],
         "medications": ["Duloxetine", "Estrogen Cream", "No Medications", "Pelvic Floor Exercises", "Surgery"],
         "medical_specialty": "Urology",
     },

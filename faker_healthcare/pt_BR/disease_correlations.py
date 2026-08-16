@@ -60,7 +60,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "Ortopedia",
     },
     "Artrite reumatoide": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["Dor articular", "Inchaço", "Fadiga", "Fraqueza", "Dores musculares"],
         "medications": ["Metotrexato", "Prednisona", "Adalimumabe", "Hidroxicloroquina", "Sulfassalazina"],
         "medical_specialty": "Reumatologia",
@@ -248,7 +248,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Transtorno do espectro autista": {
         "icd10": "F84.0",
         "symptoms": ["Comprometimento social", "Dificuldades de comunicação", "Comportamentos repetitivos", "Sensibilidades sensoriais", "Interesses restritos"],
-        "medications": ["Risperidona", "Aripiprazol", "ISRSs", "Estimulantes", "Anticonvulsivantes"],
+        "medications": ["Risperidona", "Aripiprazol", "Melatonina"],
         "medical_specialty": "Psiquiatria",
     },
     "Doença de Crohn": {
@@ -745,7 +745,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Incontinência de esforço": {
         "icd10": "N39.3",
-        "symptoms": ["Vazamento de urina ao tossir", "Espirrar", "Exercício", "Levantar", "Rir"],
+        "symptoms": ["Vazamento de urina ao tossir", "Vazamento de urina ao espirrar", "Vazamento de urina ao rir", "Vazamento de urina durante exercício", "Vazamento de urina ao levantar peso"],
         "medications": ["Duloxetina", "Creme de estrogênio", "Sem medicamentos", "Exercícios do assoalho pélvico", "Cirurgia"],
         "medical_specialty": "Urologia",
     },

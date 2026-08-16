@@ -43,7 +43,10 @@ where = ["."]
 
 [tool.ruff]
 line-length = 200
-target-version = "py313"
+# Must match the floor in requires-python: ruff's target-version decides which syntax and
+# stdlib APIs it considers available, so a higher value silently allows code that cannot
+# run on the oldest supported interpreter.
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

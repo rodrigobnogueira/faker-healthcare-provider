@@ -15,6 +15,7 @@ pip install faker-healthcare-provider
 ```python
 from faker import Faker
 from faker_healthcare import HealthcareProvider
+from faker_healthcare.es_ES import Provider as SpanishProvider
 
 # English (default)
 fake = Faker()
@@ -28,20 +29,25 @@ print(scenario)
 #   'icd10': 'E11.9',
 #   'symptoms': ['Fatigue', 'Blurred Vision', 'Frequent Urination'],
 #   'medications': ['Metformin', 'Insulin Glargine'],
-#   'specialty': 'Endocrinology'
+#   'medical_specialty': 'Endocrinology'
 # }
 
 # Or generate individual data
-fake.disease()            # 'Essential Hypertension'
-fake.diagnosis()          # 'Type 2 Diabetes (E11.9)'
-fake.medical_specialty()  # 'Cardiology'
+fake.disease()                    # 'Essential Hypertension'
+fake.diagnosis()                  # 'Type 2 Diabetes (E11.9)'
+fake.disease_medical_specialty()  # 'Cardiology'
 
-# Use a different language (Spanish, Portuguese, Chinese, French, German)
+# Use a different language: add that locale's Provider, not the base one
 fake_es = Faker('es_ES')
-fake_es.add_provider(HealthcareProvider)
-fake_es.disease()         # 'Diabetes Tipo 2'
-fake_es.diagnosis()       # 'Diabetes Tipo 2 (E11.9)'
+fake_es.add_provider(SpanishProvider)
+fake_es.disease()                 # 'Diabetes mellitus tipo 2'
+fake_es.diagnosis()               # 'Diabetes mellitus tipo 2 (E11.9)'
 ```
+
+> **The locale `Provider` is what loads the translated catalogue.** Adding the base
+> `HealthcareProvider` to a `Faker('es_ES')` gives you Spanish names and addresses from
+> Faker itself, but **English** clinical data from this package. Import
+> `faker_healthcare.<locale>` and add its `Provider` instead. Every example below does.
 
 💡 **Tip**: Run `python showcase.py` to see all available features and examples!
 
@@ -65,45 +71,56 @@ from faker_healthcare import HealthcareProvider
 fake = Faker()
 fake.add_provider(HealthcareProvider)
 
-fake.diagnosis()          # 'Type 2 Diabetes (E11.9)'
-fake.disease()            # 'Essential Hypertension'
-fake.icd10_code()         # 'I10'
-fake.generic_drug()       # 'Metformin'
-fake.medical_specialty()  # 'Cardiology'
-fake.blood_type()         # 'O+'
+fake.diagnosis()                  # 'Type 2 Diabetes (E11.9)'
+fake.disease()                    # 'Essential Hypertension'
+fake.icd10_code()                 # 'I10'
+fake.generic_drug()               # 'Metformin'
+fake.intervention()               # 'Pelvic Floor Exercises'
+fake.disease_medical_specialty()  # 'Cardiology'
+fake.blood_type()                 # 'O+'
 ```
 
 ### Multi-Language Support
 
+Each locale ships its own `Provider`. Import it from `faker_healthcare.<locale>` and add
+**that** provider — the base `HealthcareProvider` always carries the English catalogue.
+
 ```python
 from faker import Faker
-from faker_healthcare import HealthcareProvider
+from faker_healthcare.de_DE import Provider as GermanProvider
+from faker_healthcare.es_ES import Provider as SpanishProvider
+from faker_healthcare.fr_FR import Provider as FrenchProvider
+from faker_healthcare.pt_BR import Provider as PortugueseProvider
+from faker_healthcare.zh_CN import Provider as ChineseProvider
 
 # Spanish
 fake_es = Faker('es_ES')
-fake_es.add_provider(HealthcareProvider)
-fake_es.disease()  # 'Diabetes Tipo 2'
+fake_es.add_provider(SpanishProvider)
+fake_es.disease()  # 'Diabetes mellitus tipo 2'
 
 # Portuguese (Brazil)
 fake_pt = Faker('pt_BR')
-fake_pt.add_provider(HealthcareProvider)
-fake_pt.disease()  # 'Diabetes Tipo 2'
+fake_pt.add_provider(PortugueseProvider)
+fake_pt.disease()  # 'Diabetes mellitus tipo 2'
 
 # Chinese (Simplified)
 fake_zh = Faker('zh_CN')
-fake_zh.add_provider(HealthcareProvider)
-fake_zh.disease()  # '2型糖尿病'
+fake_zh.add_provider(ChineseProvider)
+fake_zh.disease()  # '非胰岛素依赖型糖尿病'
 
 # French
 fake_fr = Faker('fr_FR')
-fake_fr.add_provider(HealthcareProvider)
-fake_fr.disease()  # 'Diabète de Type 2'
+fake_fr.add_provider(FrenchProvider)
+fake_fr.disease()  # 'Diabète sucré de type 2'
 
 # German
 fake_de = Faker('de_DE')
-fake_de.add_provider(HealthcareProvider)
-fake_de.disease()  # 'Typ-2-Diabetes'
+fake_de.add_provider(GermanProvider)
+fake_de.disease()  # 'Diabetes mellitus Typ 2'
 ```
+
+Every example in this README is executed by `tests/test_readme.py`, so a broken snippet
+fails CI.
 
 ## Available Methods
 
@@ -112,9 +129,11 @@ fake_de.disease()  # 'Typ-2-Diabetes'
 | `diagnosis()` | Type 2 Diabetes (E11.9) |
 | `disease()` | Essential Hypertension, Asthma |
 | `icd10_code()` | E11.9, I10, J45.909 |
-| `medical_specialty()` | Cardiology, Neurology |
+| `patient_scenario()` | A correlated disease / code / symptoms / medications record |
+| `disease_medical_specialty()` | Cardiology, Neurology |
 | `hospital_department()` | Emergency, ICU, Radiology |
 | `generic_drug()` | Metformin, Lisinopril |
+| `intervention()` | Surgery, Pelvic Floor Exercises, Hearing Aids |
 | `brand_drug()` | Zolpraxen, Vyracol, Trovamin *(fictitious)* |
 | `symptom()` | Fever, Headache, Fatigue |
 | `blood_type()` | A+, O-, AB+ |
@@ -122,6 +141,15 @@ fake_de.disease()  # 'Typ-2-Diabetes'
 | `medical_procedure()` | MRI Scan, Blood Test |
 | `insurance_plan()` | PPO, HMO, Medicare |
 | `vital_sign()` | Blood Pressure, Heart Rate |
+
+`generic_drug()` draws only from drug substances. Treatments that are not drugs —
+surgery, devices, diets, "No Medications" — come from `intervention()`. A condition's
+own treatment list (`medication(disease=...)`, `medications(...)`, `patient_scenario()`)
+still contains both, because that is what makes the record realistic.
+
+Accessors that take a `disease=` argument (`icd10_code`, `symptom`, `medication`,
+`disease_symptoms`, `medications`, `patient_scenario`) raise `ValueError` for a disease
+that is not in the catalogue; they never fall back to an unrelated condition's data.
 
 ## Locale-Specific Features
 
@@ -144,7 +172,7 @@ Each locale includes:
 All data generated by this provider is **synthetic test data** for development and testing only, and **must not be used for medical diagnosis, treatment, or any clinical or healthcare decision**. The combinations produced are random.
 
 - **Diagnoses & ICD-10 codes** are drawn from real classifications so records look realistic. Granular codes are **ICD-10-CM** (produced by CDC/NCHS and distributed free by the U.S. government); base codes are **WHO ICD-10**, © World Health Organization, used under [**CC BY-ND 3.0 IGO**](https://creativecommons.org/licenses/by-nd/3.0/igo/) — reproduced verbatim, with attribution.
-- **Generic drug names** are real **International Nonproprietary Names (INN)**, which WHO formally places in the public domain.
+- **Generic drug names** are real non-proprietary names: the WHO **International Nonproprietary Name (INN)**, which WHO formally places in the public domain, or the name adopted in that locale's clinical use where it differs (the English catalogue uses *Acetaminophen* and *Albuterol*, the US-adopted names for INN paracetamol and salbutamol).
 - **Brand drug names are entirely fictitious** — generated from invented morphemes, deliberately avoiding INN stems. They are **not** real trademarks, and any resemblance to a real product is coincidental.
 
 ## Contributing

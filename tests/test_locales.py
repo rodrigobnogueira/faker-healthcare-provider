@@ -1,5 +1,7 @@
 import importlib
 import re
+from collections import Counter, defaultdict
+from types import ModuleType
 
 import pytest
 from faker import Faker
@@ -8,10 +10,36 @@ from faker_healthcare import HealthcareProvider
 
 
 SUPPORTED_LOCALES = ["en_US", "pt_BR", "es_ES", "zh_CN", "fr_FR", "de_DE"]
+NON_ENGLISH_LOCALES = [locale for locale in SUPPORTED_LOCALES if locale != "en_US"]
 
 # ICD-10 codes are universal, so they are the reliable way to check that a condition
 # exists in every locale regardless of how its name is translated.
 NEW_CONDITION_ICD10_CODES = {"B02.9", "L03.90", "A69.20", "A90", "B27.90", "A08.4", "K76.0", "G56.00"}
+
+# Constants that are the same catalog in every language and must therefore hold the same
+# number of entries everywhere. A locale that is short an entry can never generate it.
+SHARED_CONSTANTS = [
+    "HOSPITAL_DEPARTMENTS",
+    "BLOOD_TYPES",
+    "ALLERGIES",
+    "MEDICAL_PROCEDURES",
+    "VITAL_SIGNS",
+    "NON_DRUG_INTERVENTIONS",
+]
+
+# INSURANCE_PLANS is deliberately country-specific — US plan types, Brazilian plan
+# structures, Spanish mutualidades, German GKV/PKV funds — so its size legitimately
+# differs per locale and it is EXEMPT from cardinality parity by design.
+LOCALE_SPECIFIC_CONSTANTS = ["INSURANCE_PLANS"]
+
+# The brand-name generator is shared, not translated: locale providers inherit
+# brand_drug() from the base, so these pools live only in the base constants module
+# (zh_CN adds its own ZH_BRAND_CHARS on top).
+BASE_ONLY_CONSTANTS = ["BRAND_PREFIXES", "BRAND_INFIXES", "BRAND_SUFFIXES", "BRAND_FORBIDDEN_ENDINGS"]
+
+# Hiragana and katakana. Simplified Chinese data must contain neither; a katakana drug
+# name (リオチロニン) shipped in zh_CN for several releases.
+JAPANESE_KANA_RE = re.compile(r"[぀-ヿ]")
 
 
 def _load_correlations(locale: str) -> dict:
@@ -21,6 +49,35 @@ def _load_correlations(locale: str) -> dict:
     else:
         module = importlib.import_module(f"faker_healthcare.{locale}.disease_correlations")
     return module.DISEASE_CORRELATIONS
+
+
+def _load_constants(locale: str) -> ModuleType:
+    """Load the constants module for a given locale."""
+    if locale == "en_US":
+        return importlib.import_module("faker_healthcare.constants")
+    return importlib.import_module(f"faker_healthcare.{locale}.constants")
+
+
+def _icd10_counter(locale: str) -> Counter:
+    """Multiset of ICD-10 codes; a multiset, because two conditions may share a code."""
+    return Counter(data["icd10"] for data in _load_correlations(locale).values())
+
+
+def _length_profile(locale: str) -> dict[str, list[tuple[int, int]]]:
+    """Per ICD-10 code, the sorted (symptom count, medication count) pairs of its conditions.
+
+    Keyed by code rather than by position, so the catalogs may legitimately be ordered
+    differently, and grouped, because two conditions may share one code.
+    """
+    profile: defaultdict[str, list[tuple[int, int]]] = defaultdict(list)
+    for data in _load_correlations(locale).values():
+        profile[data["icd10"]].append((len(data["symptoms"]), len(data["medications"])))
+    return {code: sorted(pairs) for code, pairs in profile.items()}
+
+
+def _healthcare_provider(fake: Faker) -> HealthcareProvider:
+    """Return the HealthcareProvider instance backing a Faker, for its derived pools."""
+    return next(p for p in fake.providers if isinstance(p, HealthcareProvider))
 
 
 def _get_provider_for_locale(locale: str) -> type[HealthcareProvider]:
@@ -135,6 +192,45 @@ class TestLocaleProviders:
         assert "(" in diagnosis
         assert ")" in diagnosis
 
+    def test_intervention_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        intervention = fake.intervention()
+        assert isinstance(intervention, str)
+        assert len(intervention) > 0
+
+    def test_drug_pool_and_intervention_pool_are_disjoint(self, fake_locale: tuple[Faker, str]) -> None:
+        """generic_drug() must never return a procedure, device, or diet in any locale."""
+        fake, locale = fake_locale
+        provider = _healthcare_provider(fake)
+        interventions = set(provider.interventions)
+        assert interventions, f"{locale}: no interventions derived from the catalog"
+        assert interventions.isdisjoint(provider.generic_drugs), locale
+
+    def test_declared_interventions_all_appear_in_the_catalog(self, fake_locale: tuple[Faker, str]) -> None:
+        """A declared intervention that no condition prescribes is a translation left behind."""
+        fake, locale = fake_locale
+        provider = _healthcare_provider(fake)
+        prescribed: set[str] = set()
+        for data in provider.disease_correlations.values():
+            prescribed.update(data["medications"])
+        missing = set(provider.non_drug_interventions) - prescribed
+        assert not missing, f"{locale}: declared interventions not used by any condition: {sorted(missing)}"
+
+    def test_unknown_disease_raises_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """No locale may fall back to an uncorrelated draw for an unknown disease."""
+        fake, locale = fake_locale
+        unknown = "Not A Disease"
+        for call in (
+            lambda: fake.icd10_code(disease=unknown),
+            lambda: fake.symptom(disease=unknown),
+            lambda: fake.medication(disease=unknown),
+            lambda: fake.disease_symptoms(unknown),
+            lambda: fake.medications(unknown),
+            lambda: fake.patient_scenario(disease=unknown),
+        ):
+            with pytest.raises(ValueError, match=unknown):
+                call()
+
 
 class TestLocaleSpecificData:
     """Verify all locales load their own locale-specific data."""
@@ -179,12 +275,64 @@ class TestLocaleSpecificData:
 
 
 class TestLocaleParity:
-    """Verify every locale exposes the same catalog of conditions (matched by universal ICD-10 codes)."""
+    """Verify every locale exposes the same *content*, not merely the same counts.
+
+    Equal condition counts alone let real divergence through: zh_CN shipped for several
+    releases without the G40.909 condition every other locale had, carrying an H25.9
+    condition no other locale had, and the counts matched perfectly. Parity here means
+    the ICD-10 multiset, the per-condition list lengths, and the size of every shared
+    constant tuple.
+    """
 
     def test_all_locales_have_equal_disease_count(self) -> None:
         """Every locale must define the same number of diseases so no locale falls behind on additions."""
         counts = {locale: len(_load_correlations(locale)) for locale in SUPPORTED_LOCALES}
         assert len(set(counts.values())) == 1, f"Locale disease counts differ: {counts}"
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_icd10_multiset_matches_the_base(self, locale: str) -> None:
+        """Same codes, same number of times — the check equal counts cannot make."""
+        base = _icd10_counter("en_US")
+        actual = _icd10_counter(locale)
+        missing = base - actual
+        extra = actual - base
+        assert not missing and not extra, f"{locale} diverges from the base catalog: missing={dict(missing)}, unexpected={dict(extra)}"
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_per_condition_list_lengths_match_the_base(self, locale: str) -> None:
+        """A translated condition must carry as many symptoms and medications as the base one."""
+        base = _length_profile("en_US")
+        actual = _length_profile(locale)
+        differing = {code: (base[code], actual[code]) for code in base if code in actual and base[code] != actual[code]}
+        assert not differing, f"{locale}: (symptoms, medications) counts differ from the base for {differing}"
+
+    @pytest.mark.parametrize("constant_name", SHARED_CONSTANTS)
+    def test_shared_constants_have_equal_cardinality(self, constant_name: str) -> None:
+        """A locale short one procedure or one allergy can never generate it."""
+        sizes = {locale: len(getattr(_load_constants(locale), constant_name)) for locale in SUPPORTED_LOCALES}
+        assert len(set(sizes.values())) == 1, f"{constant_name} differs across locales: {sizes}"
+
+    def test_every_base_constant_is_classified(self) -> None:
+        """A new constant must be declared shared or locale-specific, not silently unchecked."""
+        base = _load_constants("en_US")
+        declared = {name for name in vars(base) if name.isupper() and isinstance(getattr(base, name), tuple)}
+        classified = set(SHARED_CONSTANTS) | set(LOCALE_SPECIFIC_CONSTANTS) | set(BASE_ONLY_CONSTANTS)
+        buckets = "SHARED_CONSTANTS, LOCALE_SPECIFIC_CONSTANTS, or BASE_ONLY_CONSTANTS"
+        assert declared == classified, f"unclassified constants in faker_healthcare/constants.py: {sorted(declared - classified)} (add them to {buckets})"
+
+    def test_zh_cn_contains_no_japanese_kana(self) -> None:
+        """zh_CN is Simplified Chinese; kana means a Japanese term slipped in."""
+        offenders: list[str] = []
+        for disease, data in _load_correlations("zh_CN").items():
+            values = [disease, data["icd10"], data["medical_specialty"], *data["symptoms"], *data["medications"]]
+            offenders.extend(value for value in values if JAPANESE_KANA_RE.search(value))
+
+        constants_module = _load_constants("zh_CN")
+        for name in vars(constants_module):
+            if name.isupper() and isinstance(getattr(constants_module, name), tuple):
+                offenders.extend(value for value in getattr(constants_module, name) if JAPANESE_KANA_RE.search(value))
+
+        assert not offenders, f"zh_CN contains Japanese kana: {offenders}"
 
     @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
     def test_new_conditions_present_in_locale(self, locale: str) -> None:

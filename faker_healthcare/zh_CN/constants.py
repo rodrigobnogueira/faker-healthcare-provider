@@ -112,11 +112,7 @@ ALLERGIES: tuple[str, ...] = (
     "芹菜",
     "羽扇豆",
     "亚硫酸盐",
-    "味精 (MSG)",
     "红色染料",
-    "麸质",
-    "乳糖",
-    "果糖",
 )
 
 MEDICAL_PROCEDURES: tuple[str, ...] = (
@@ -271,4 +267,56 @@ VITAL_SIGNS: tuple[str, ...] = (
     "疼痛等级",
     "脉搏",
     "峰流速",
+)
+
+# Treatments that a condition's `medications` list may legitimately contain but that
+# are not drugs: procedures, devices, and lifestyle measures. They are correct inside
+# a condition's treatment list (see AGENTS.md), but wrong in the flat pool a consumer
+# draws a medication column from, so `generic_drugs` excludes them and the provider
+# exposes them separately via `interventions` / `intervention()`.
+# Kept in the same order in every locale, so index i is the same intervention
+# everywhere; every entry must also appear in this locale's DISEASE_CORRELATIONS
+# (tests/test_locales.py enforces both).
+NON_DRUG_INTERVENTIONS: tuple[str, ...] = (
+    "防眩光镜片",
+    "膀胱灌注",
+    "输血",
+    "CPAP治疗",
+    "化疗",
+    "胸管",
+    "人工耳蜗",
+    "分娩",
+    "透析",
+    "饮食控制",
+    "电解质管理",
+    "运动",
+    "眼镜",
+    "无麸质饮食",
+    "助听器",
+    "湿化空气",
+    "水化",
+    "静脉输液",
+    "铁输注",
+    "激光疗法",
+    "放大镜",
+    "无药物",
+    "氧气",
+    "氧疗",
+    "盆底运动",
+    "光动力疗法",
+    "血浆置换",
+    "胸膜固定术",
+    "肺康复",
+    "放疗",
+    "放射性碘",
+    "生理盐水冲洗",
+    "脾切除术",
+    "蒸汽吸入",
+    "日光暴露",
+    "支持性护理",
+    "手术",
+    "胸腔穿刺",
+    "玻璃体切除术",
+    "声音休息",
+    "腕部夹板",
 )

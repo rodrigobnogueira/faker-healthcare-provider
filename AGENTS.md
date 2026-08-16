@@ -16,7 +16,11 @@ changes small, data-focused, and easy to verify.
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
   `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`, and
   `disease_correlations.py`.
-- `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`, `test_performance.py`.
+- `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
+  `test_performance.py`, `test_readme.py`.
+- `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
+  `python` block and calls every method the "Available Methods" table lists. Change a public
+  method and the README changes with it, in the same PR.
 - `CONTRIBUTING.md` — the human-facing summary of these rules; when a rule here changes,
   update it in the same change so the two cannot drift.
 
@@ -35,9 +39,12 @@ Every entry in every `DISEASE_CORRELATIONS` dict is a `DiseaseData`:
 
 - All four keys are required and must be non-empty; tests enforce this (`TestDataIntegrity`,
   `TestLocaleParity`).
-- The base provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`, and
-  `medical_specialties` from `DISEASE_CORRELATIONS`. Do not add these as redundant class
-  attributes on locale providers — `test_performance.py` asserts they stay derived properties.
+- The base provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`,
+  `interventions`, and `medical_specialties` from `DISEASE_CORRELATIONS`. Do not add these as
+  redundant class attributes on locale providers — `test_performance.py` asserts they stay
+  derived properties. What a locale *does* declare is its static tuples
+  (`hospital_departments`, `blood_types`, `allergies`, `medical_procedures`,
+  `insurance_plans`, `vital_signs`, `non_drug_interventions`), which the same test requires.
 - `icd10` is universal (same code across all locales). Symptoms, medications, disease names,
   and specialties are translated per locale. Two distinct disease names may legitimately share
   one ICD-10 code (e.g. `Epilepsy` and `Seizure Disorder` → `G40.909`); the code is deduped
@@ -48,12 +55,31 @@ Every entry in every `DISEASE_CORRELATIONS` dict is a `DiseaseData`:
 The whole point of the library is that generated clinical data is internally consistent.
 When you add or edit a disease:
 
-- The `icd10` must be the correct WHO ICD-10 code for that condition.
-- `symptoms` must be symptoms that condition actually causes.
-- `medications` must be treatments actually used for that condition (drugs or, following the
-  existing pattern, interventions like `Surgery`, `IV Fluids`, `Wrist Splint`, `No Medications`).
-  Use real **generic INN** names (public domain), **never brand/trademark names** — brand names are
-  produced separately by `brand_drug()`.
+- The `icd10` must be the correct WHO ICD-10 code for that condition. Check it is the code for
+  the condition you named, not a neighbouring one: rheumatoid arthritis shipped as `M79.1`
+  (*Myalgia*, non-billable) for several releases before it was corrected to `M06.9`.
+- `symptoms` must be symptoms that condition actually causes, and **each entry must be a
+  self-contained clinical term**. Never split one sentence across slots: stress incontinence
+  once read `["Urine Leakage with Coughing", "Sneezing", "Exercise", "Lifting", "Laughing"]`,
+  so `symptom()` returned "Laughing" as a symptom and the fragments leaked into the global
+  symptom pool. Each slot must still read correctly on its own, out of context.
+- `medications` must be treatments actually used for that condition, and **must name
+  substances, not drug classes**. `["Risperidone", "Aripiprazole", "SSRIs", "Stimulants",
+  "Anticonvulsants"]` is three substances plus two categories padding out the list; name the
+  substances or shorten the list. (Some older entries still carry class names such as
+  `Antibiotics` or `Statins`; fix them when you touch that condition, and never add a new one.)
+- Use real **generic** names, **never brand/trademark names** — brand names are produced
+  separately by `brand_drug()`. Prefer the **INN** (WHO places it in the public domain),
+  **except where a locale has a different adopted name in clinical use**, in which case use
+  the locale's adopted name: the `en` catalog says `Albuterol` (INN salbutamol) and
+  `Acetaminophen` (INN paracetamol) because those are the US-adopted names, and `de_DE` says
+  `Paracetamol`. Match the locale, do not "correct" a locale's adopted name to the INN.
+- A treatment that is **not a drug** — a procedure, a device, a diet, `Surgery`, `IV Fluids`,
+  `Wrist Splint`, `No Medications` — is legitimate inside `medications`, but it must also be
+  listed in that locale's `NON_DRUG_INTERVENTIONS` tuple in `constants.py`, at the same index
+  as its counterpart in every other locale. That tuple is what keeps `generic_drug()` a pool of
+  drugs; `intervention()` and the `interventions` property expose the rest.
+  `tests/test_locales.py` fails if a declared intervention is not prescribed by any condition.
 - `medical_specialty` must be the specialty that manages the condition, and should reuse an
   existing specialty string already present in the catalog.
 
@@ -61,16 +87,37 @@ When you add or edit a disease:
 `medication(disease=...)` all read straight from this data, so any inconsistency becomes a
 visible, wrong-looking record.
 
+**An accessor that takes a `disease=` argument must RAISE `ValueError` for a disease it does
+not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications` and
+`patient_scenario` all do. Never fall back to an uncorrelated random draw: the caller asked
+about one condition and would silently receive another condition's data, which is precisely
+the failure this library exists to prevent.
+
 ## Locale Mechanism
 
 - Each locale package's `Provider` subclasses the base and overrides `_load_disease_correlations`
   to import that locale's `DISEASE_CORRELATIONS` lazily (import happens inside the method, not at
   module top level — this keeps per-locale data out of memory until used; `test_performance.py`
   `test_locale_memory_isolation` enforces it via subprocesses).
-- Keep the catalogs at **parity**: every locale defines the same number of conditions, matched by
-  their shared ICD-10 codes. `test_locales.py::TestLocaleParity` checks equal counts and that a
-  new condition (identified by ICD-10) exists in all six locales. If you add a condition, add it
-  to **all six** `disease_correlations.py` files (English base + five locales).
+- Keep the catalogs at **parity**, and parity means **content** parity, not equal counts.
+  Equal counts alone are worthless: zh_CN shipped for several releases missing the `G40.909`
+  condition the other five locales had and carrying an `H25.9` condition none of them had, and
+  the counts matched perfectly. `test_locales.py::TestLocaleParity` now enforces all of:
+  - the **multiset of ICD-10 codes** per locale equals the base's (a multiset, because two
+    conditions may legitimately share a code);
+  - per ICD-10 code, the **(symptom count, medication count) pairs** equal the base's, so a
+    translation cannot quietly drop a symptom;
+  - every **shared constant tuple** (`HOSPITAL_DEPARTMENTS`, `BLOOD_TYPES`, `ALLERGIES`,
+    `MEDICAL_PROCEDURES`, `VITAL_SIGNS`, `NON_DRUG_INTERVENTIONS`) has the same cardinality in
+    all six locales. `INSURANCE_PLANS` is the one deliberate exemption — plan types are
+    country-specific. A **new** constant must be added to one of the classification lists in
+    `test_locales.py` or the suite fails;
+  - `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug name
+    (リオチロニン) reached the Simplified Chinese catalog.
+
+  If you add a condition, add it to **all six** `disease_correlations.py` files (English base
+  plus five locales), with the same number of symptoms and medications in each. If you add,
+  remove, or translate a shared constant entry, do it in all six `constants.py` files.
 - Per-locale translation conventions already in the data (follow them exactly):
   - `pt_BR`, `es_ES`: medication names localized (e.g. `Amoxicillin` → `Amoxicilina`).
   - `de_DE`: medication names germanized (e.g. `Doxycycline` → `Doxycyclin`, `Cefuroxime` →
@@ -101,6 +148,13 @@ visible, wrong-looking record.
   verbatim, keep the WHO attribution in the module docstrings and README, and never modify a code.
 - Add focused tests that extend the existing patterns (`TestNewConditions` in
   `test_correlations.py`, `TestLocaleParity` in `test_locales.py`).
+- **A new public method must reach the README and `showcase.py`.** `tests/test_readme.py`
+  executes every fenced `python` block in the README and calls every method its
+  "Available Methods" table lists, so a documented method that does not exist — the README
+  claimed `medical_specialty()` for several releases, the real name being
+  `disease_medical_specialty()` — fails CI. The same test asserts every non-English example
+  imports that locale's own `Provider`; adding the base `HealthcareProvider` to a
+  `Faker('es_ES')` loads the **English** catalog, which is what the README used to teach.
 
 ## Performance Test Expectations
 

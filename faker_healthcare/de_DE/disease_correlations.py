@@ -63,7 +63,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "Orthopädie",
     },
     "Rheumatoide Arthritis": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["Gelenkschmerzen", "Schwellungen", "Müdigkeit", "Schwäche", "Muskelschmerzen"],
         "medications": ["Methotrexat", "Prednison", "Adalimumab", "Hydroxychloroquin", "Sulfasalazin"],
         "medical_specialty": "Rheumatologie",
@@ -94,7 +94,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Hypothyreose": {
         "icd10": "E03.9",
-        "symptoms": ["Müdigkeit", "Gewichtsverlust", "Haarausfall", "Trockene Haut", "Verstopfung"],
+        "symptoms": ["Müdigkeit", "Gewichtszunahme", "Haarausfall", "Trockene Haut", "Verstopfung"],
         "medications": ["Levothyroxin", "Liothyronin", "Thyroid"],
         "medical_specialty": "Endokrinologie",
     },
@@ -251,7 +251,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Autismus-Spektrum-Störung": {
         "icd10": "F84.0",
         "symptoms": ["Soziale Beeinträchtigung", "Kommunikationsschwierigkeiten", "Repetitive Verhaltensweisen", "Sensorische Empfindlichkeiten", "Eingeschränkte Interessen"],
-        "medications": ["Risperidon", "Aripiprazol", "SSRIs", "Stimulanzien", "Antikonvulsiva"],
+        "medications": ["Risperidon", "Aripiprazol", "Melatonin"],
         "medical_specialty": "Psychiatrie",
     },
     "Morbus Crohn": {
@@ -748,7 +748,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Stressinkontinenz": {
         "icd10": "N39.3",
-        "symptoms": ["Urinleckage beim Husten", "Niesen", "Sport", "Heben", "Lachen"],
+        "symptoms": ["Urinverlust beim Husten", "Urinverlust beim Niesen", "Urinverlust beim Lachen", "Urinverlust beim Sport", "Urinverlust beim Heben schwerer Lasten"],
         "medications": ["Duloxetin", "Östrogencreme", "Keine Medikamente", "Beckenbodentraining", "Chirurgie"],
         "medical_specialty": "Urologie",
     },
