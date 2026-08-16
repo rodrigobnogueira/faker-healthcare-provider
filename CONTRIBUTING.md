@@ -75,9 +75,10 @@ Every entry of every `DISEASE_CORRELATIONS` dict is a `DiseaseData`
 All four keys are **required and non-empty** — `tests/test_correlations.py::TestDataIntegrity`
 and `tests/test_locales.py::TestLocaleParity` fail otherwise.
 
-The provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`, and
-`medical_specialties` from this dict. Never re-declare them as class attributes on a
-locale provider; `tests/test_performance.py` asserts they stay derived properties, and
+The provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`,
+`interventions`, and `medical_specialties` from this dict. Never re-declare them as class
+attributes on a locale provider — a locale declares only its static tuples, including
+`non_drug_interventions`. `tests/test_performance.py` asserts they stay derived properties, and
 that importing one locale does not drag another locale's modules into `sys.modules`
 (hence the lazy import inside `_load_disease_correlations`).
 

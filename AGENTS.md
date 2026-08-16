@@ -39,9 +39,12 @@ Every entry in every `DISEASE_CORRELATIONS` dict is a `DiseaseData`:
 
 - All four keys are required and must be non-empty; tests enforce this (`TestDataIntegrity`,
   `TestLocaleParity`).
-- The base provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`, and
-  `medical_specialties` from `DISEASE_CORRELATIONS`. Do not add these as redundant class
-  attributes on locale providers — `test_performance.py` asserts they stay derived properties.
+- The base provider **derives** `diseases`, `icd10_codes`, `symptoms`, `generic_drugs`,
+  `interventions`, and `medical_specialties` from `DISEASE_CORRELATIONS`. Do not add these as
+  redundant class attributes on locale providers — `test_performance.py` asserts they stay
+  derived properties. What a locale *does* declare is its static tuples
+  (`hospital_departments`, `blood_types`, `allergies`, `medical_procedures`,
+  `insurance_plans`, `vital_signs`, `non_drug_interventions`), which the same test requires.
 - `icd10` is universal (same code across all locales). Symptoms, medications, disease names,
   and specialties are translated per locale. Two distinct disease names may legitimately share
   one ICD-10 code (e.g. `Epilepsy` and `Seizure Disorder` → `G40.909`); the code is deduped
