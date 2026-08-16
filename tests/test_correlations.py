@@ -8,6 +8,7 @@ from faker import Faker
 
 from faker_healthcare import HealthcareProvider
 from faker_healthcare.disease_correlations import DISEASE_CORRELATIONS
+from faker_healthcare.types import DiseaseData
 
 
 # ICD-10 codes follow a letter + two digits, optionally a dot and 1-3 more chars (e.g. E11.9, I10, C50.919).
@@ -147,6 +148,42 @@ class TestBackwardCompatibility:
         result = faker.medication()
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+class _SingleMedicationProvider(HealthcareProvider):
+    """A provider whose only condition has a single medication and two symptoms."""
+
+    def _load_disease_correlations(self) -> dict[str, DiseaseData]:
+        return {
+            "Test Condition": {
+                "icd10": "Z00.0",
+                "symptoms": ["First Symptom", "Second Symptom"],
+                "medications": ["Only Medication"],
+                "medical_specialty": "Testing",
+            }
+        }
+
+
+class TestPatientScenarioBounds:
+    """patient_scenario must honour its documented counts and never build an empty range."""
+
+    def test_counts_match_the_docstring(self, faker: Faker) -> None:
+        for _ in range(200):
+            scenario = faker.patient_scenario()
+            data = DISEASE_CORRELATIONS[scenario["disease"]]
+            symptoms_available = len(data["symptoms"])
+            meds_available = len(data["medications"])
+            assert min(3, symptoms_available) <= len(scenario["symptoms"]) <= min(5, symptoms_available)
+            assert min(2, meds_available) <= len(scenario["medications"]) <= min(3, meds_available)
+
+    def test_condition_with_one_medication_does_not_crash(self) -> None:
+        """A single-medication condition used to raise 'empty range in randrange(2, 2)'."""
+        fake = Faker()
+        fake.add_provider(_SingleMedicationProvider)
+        for _ in range(10):
+            scenario = fake.patient_scenario(disease="Test Condition")
+            assert scenario["medications"] == ["Only Medication"]
+            assert len(scenario["symptoms"]) == 2
 
 
 class TestUnknownDiseaseRaises:

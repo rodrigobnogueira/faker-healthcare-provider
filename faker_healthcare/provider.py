@@ -237,9 +237,12 @@ class HealthcareProvider(BaseProvider):
             Dictionary containing:
                 - disease: The disease name
                 - icd10: The correct ICD-10 code
-                - symptoms: List of 3-5 correlated symptoms
-                - medications: List of 2-3 correlated medications
+                - symptoms: List of 3-5 correlated symptoms (fewer only if the condition has fewer)
+                - medications: List of 2-3 correlated medications (fewer only if the condition has fewer)
                 - medical_specialty: The primary medical specialty
+
+        Raises:
+            ValueError: If disease is given but not found in correlations.
         """
         if disease is None:
             disease = self.disease()
@@ -247,8 +250,12 @@ class HealthcareProvider(BaseProvider):
             raise ValueError(f"Disease '{disease}' not found in diseases list")
 
         disease_data = self.disease_correlations[disease]
-        num_symptoms = self.random_int(min=1, max=min(5, len(disease_data["symptoms"])))
-        num_meds = self.random_int(min=2, max=min(3, len(disease_data["medications"])))
+        # Both ranges are clamped to what the condition actually has, so a condition with
+        # fewer than three symptoms or a single medication cannot produce an empty randrange.
+        available_symptoms = len(disease_data["symptoms"])
+        available_meds = len(disease_data["medications"])
+        num_symptoms = self.random_int(min=min(3, available_symptoms), max=min(5, available_symptoms))
+        num_meds = self.random_int(min=min(2, available_meds), max=min(3, available_meds))
 
         return {
             "disease": disease,
