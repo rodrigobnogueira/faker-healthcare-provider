@@ -112,11 +112,7 @@ ALLERGIES: tuple[str, ...] = (
     "芹菜",
     "羽扇豆",
     "亚硫酸盐",
-    "味精 (MSG)",
     "红色染料",
-    "麸质",
-    "乳糖",
-    "果糖",
 )
 
 MEDICAL_PROCEDURES: tuple[str, ...] = (

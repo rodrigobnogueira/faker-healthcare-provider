@@ -73,11 +73,7 @@ ALLERGIES: tuple[str, ...] = (
     "Aipo",
     "Lupino",
     "Sulfitos",
-    "Glutamato Monossódico",
     "Corante Vermelho",
-    "Glúten",
-    "Lactose",
-    "Frutose",
 )
 
 MEDICAL_PROCEDURES: tuple[str, ...] = (

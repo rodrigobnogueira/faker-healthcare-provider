@@ -73,11 +73,7 @@ ALLERGIES: tuple[str, ...] = (
     "Sellerie",
     "Lupinen",
     "Sulfite",
-    "Glutamat",
     "Farbstoffe",
-    "Gluten",
-    "Laktose",
-    "Fruktose",
 )
 
 MEDICAL_PROCEDURES: tuple[str, ...] = (

@@ -208,11 +208,7 @@ ALLERGIES: tuple[str, ...] = (
     "Celery",
     "Lupin",
     "Sulfites",
-    "MSG",
     "Red Dye",
-    "Gluten",
-    "Lactose",
-    "Fructose",
 )
 
 MEDICAL_PROCEDURES: tuple[str, ...] = (
