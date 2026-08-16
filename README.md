@@ -149,6 +149,12 @@ fails CI.
 | `alcohol_intake_category()` | Non-drinker, Low risk, Increasing risk, Higher risk |
 | `lab_result()` | One flagged result with the reference interval beside it |
 | `lab_panel()` | 4-8 distinct results, correlated when `disease=` is given |
+| `medication_order()` | {'medication': 'Metformin', 'dose': 850, 'unit': 'mg', 'route': 'Oral', 'frequency': 'Twice daily', 'status': 'Current'} |
+| `medication_orders()` | 1-4 distinct orders, past / current / future |
+| `assessment_score()` | {'instrument': 'PHQ-9', 'score': 16, 'max_score': 27, 'severity': 'Moderately severe'} |
+| `nhs_number()` | 999 043 7712 *(reserved test range by default; Modulus 11 valid)* |
+| `patient()` | A scenario plus a sex, age and date of birth the condition allows |
+| `patient_record()` | The whole thing in one call: demographics, scenario, vitals, labs, medications |
 
 `generic_drug()` draws only from drug substances. Treatments that are not drugs —
 surgery, devices, diets, "No Medications" — come from `intervention()`. A condition's
@@ -157,8 +163,9 @@ still contains both, because that is what makes the record realistic.
 
 Accessors that take a `disease=` argument (`icd10_code`, `symptom`, `medication`,
 `disease_symptoms`, `medications`, `patient_scenario`, `blood_pressure`,
-`vital_sign_measurement`, `vital_sign_measurements`, `lab_result`, `lab_panel`) raise
-`ValueError` for a disease that is not in the catalogue; they never fall back to an
+`vital_sign_measurement`, `vital_sign_measurements`, `lab_result`, `lab_panel`,
+`medication_order`, `medication_orders`, `assessment_score`, `patient`, `patient_record`)
+raise `ValueError` for a disease that is not in the catalogue; they never fall back to an
 unrelated condition's data.
 
 ## Measurements and Lab Results
@@ -218,6 +225,96 @@ you pass to `vital_sign_measurement(name=...)` and `lab_result(analyte=...)`. Ea
 translates only the display labels, so `lab_panel(disease='Diabetes mellitus tipo 2')` on
 the Spanish provider returns Spanish analyte names and flags with the same numbers.
 
+## Patient Records
+
+Medications with doses, scored assessments, an NHS number, and demographics that the
+diagnosis actually allows — plus one call that returns all of it, correlated.
+
+```python
+from faker import Faker
+from faker_healthcare import HealthcareProvider
+
+fake = Faker()
+fake.add_provider(HealthcareProvider)
+
+fake.medication_order(disease='Type 2 Diabetes')
+# {'medication': 'Metformin', 'dose': 850, 'unit': 'mg', 'route': 'Oral',
+#  'frequency': 'Twice daily', 'status': 'Current'}
+
+fake.medication_orders(disease='Asthma', count=2)
+# [{'medication': 'Albuterol', 'dose': 200, 'unit': 'µg', 'route': 'Inhaled',
+#   'frequency': 'As required', 'status': 'Current'},
+#  {'medication': 'Montelukast', 'dose': 10, 'unit': 'mg', 'route': 'Oral',
+#   'frequency': 'At night', 'status': 'Past'}]
+
+fake.assessment_score(instrument='phq9', disease='Depression')
+# {'instrument': 'PHQ-9', 'score': 16, 'max_score': 27, 'severity': 'Moderately severe'}
+
+fake.nhs_number()                       # '999 043 7712'
+fake.nhs_number(official_test_range=False)  # '628 730 4185' — opt in deliberately
+
+patient = fake.patient(disease='Preeclampsia')
+(patient['sex'], patient['age'])        # ('female', 31) — never male, never a child
+
+record = fake.patient_record(disease='Depression')
+sorted(record)
+# ['age', 'assessment', 'date_of_birth', 'disease', 'icd10', 'lab_panel',
+#  'medical_specialty', 'medication_orders', 'medications', 'sex', 'symptoms',
+#  'vital_signs']
+```
+
+**Medication orders carry a dose the substance is actually dispensed at.** `status` is
+`past`, `current` or `future` — a record needs what the patient used to take and is
+booked to start, not only today's list. Dose, route and frequency all come from one
+ladder per substance, so insulin is subcutaneous, methotrexate is weekly, and salbutamol
+is inhaled as required. For a substance with no verified adult ladder — a drug *class*
+like "Antibiotics", or a cytotoxic whose real dose is body-surface-area based — the dose,
+unit, route and frequency come back as `None` rather than as an invented number. Drawn
+without a `disease=`, the pool is the substances that have a ladder, so an order always
+carries a dose.
+
+**Assessment scores carry the score and nothing else.** Instrument name, score, maximum,
+severity band — for PHQ-9, GAD-7, MMSE, MADRS, AUDIT-C and CAGE. The instruments' items,
+questions, response options and scoring instructions are **not** in this package and must
+never be added: most of them are under active copyright, while a score is a number about
+a fictional patient. `faker_healthcare/assessments.py` states the boundary in full. The
+MMSE is handled the right way up — on that one a *low* score is the abnormal one — and
+`assessment_score(disease=...)` puts a correlated condition past the published cut-off,
+so a depression record does not come back with a PHQ-9 of 2.
+
+**Demographics that the condition allows.** The catalogue has seven female-only
+conditions, three male-only ones and conditions of early childhood, so
+`clinical_values.DEMOGRAPHIC_CONSTRAINTS` — one locale-neutral map, keyed by ICD-10 code —
+is what `patient()` consults before drawing a sex and an age. No male preeclampsia
+patients, no eighty-year-olds with bronchiolitis, and a `date_of_birth` that agrees with
+the `age` beside it. `patient()` will generate a child; `patient_record()` is **adults
+only**, because the reference intervals, dose ladders and anthropometry here are adult
+data, and it refuses a paediatric-only condition rather than ageing the patient up.
+
+**NHS numbers default to the reserved test range.** `nhs_number()` returns a ten-digit
+number that passes the NHS Modulus 11 check, formatted the conventional 3-3-4 way,
+beginning **999** — the range NHS England reserves for testing and never issues to a
+patient, so a generated number cannot collide with a real person's.
+`nhs_number(official_test_range=False)` draws from the full range and is deliberately
+opt-in. The algorithm is implemented from the NHS Data Model and Dictionary specification,
+which `faker_healthcare/identifiers.py` cites.
+
+Everything above is localized the same way the measurements are: routes, frequencies,
+statuses and severity bands are translated, the numbers are not, and the substance is
+named the way that locale's catalogue names it.
+
+```python
+from faker import Faker
+from faker_healthcare.es_ES import Provider as SpanishProvider
+
+fake_es = Faker('es_ES')
+fake_es.add_provider(SpanishProvider)
+
+fake_es.medication_order(disease='Diabetes mellitus tipo 2')
+# {'medication': 'Metformina', 'dose': 850, 'unit': 'mg', 'route': 'Vía oral',
+#  'frequency': 'Dos veces al día', 'status': 'Tratamiento actual'}
+```
+
 ## Locale-Specific Features
 
 Each locale includes:
@@ -237,6 +334,22 @@ Each locale includes:
 ## Disclaimer
 
 All data generated by this provider is **synthetic test data** for development and testing only, and **must not be used for medical diagnosis, treatment, or any clinical or healthcare decision**. The combinations produced are random.
+
+- **Assessment instruments: scores only, never items.** A generated assessment carries the
+  instrument's name, a score, the maximum and a severity band. The items, questions,
+  response options and scoring instructions of PHQ-9, GAD-7, MMSE, MADRS, AUDIT-C and
+  CAGE are **not** reproduced anywhere in this package and must not be contributed: most
+  of these instruments are under active copyright, and their translations are separately
+  licensed works. A score is a number about a fictional patient; the questionnaire is
+  somebody's literary property. If you need the items, get them from the rights holder.
+
+- **Generated dose figures are not dosing guidance.** They are the dispensed strengths of
+  the substance, chosen so a synthetic order looks like an order; they ignore renal and
+  hepatic function, weight, age, interaction and indication.
+
+- **NHS numbers default to the officially reserved 999 test range**, so a generated
+  identifier cannot be a real patient's. The unreserved range exists behind
+  `nhs_number(official_test_range=False)` and is opt-in for exactly that reason.
 
 - **Reference intervals are not a laboratory's reference intervals.** The ranges in `clinical_values.py` are round adult values from widely published references, chosen so generated records look plausible. Real intervals vary by assay, analyser, population, sex, age and pregnancy, and every real report carries its own. Never interpret a generated value against them.
 

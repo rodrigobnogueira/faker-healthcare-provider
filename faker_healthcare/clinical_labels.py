@@ -1,12 +1,25 @@
 """Display labels for the locale-neutral clinical values (English base catalogue).
 
-The numbers, units and reference intervals live once in
-`faker_healthcare/clinical_values.py`; this module — and its counterpart in each locale
-package — carries **only the words**. Every locale must define exactly the same key set:
-one key per vital sign ID, one per analyte ID, the three flag words, and the four
-alcohol-intake categories. `tests/test_locales.py::TestClinicalLabelParity` fails if a
-locale is missing a key or invents one, which is what stops a new analyte from shipping
-translated in one language and untranslated in five.
+The numbers, units, reference intervals and dose ladders live once in
+`faker_healthcare/clinical_values.py`, `faker_healthcare/prescribing.py` and
+`faker_healthcare/assessments.py`; this module — and its counterpart in each locale
+package — carries **only the words**.
+
+Two dictionaries:
+
+- `CLINICAL_LABELS` — one key per vital-sign ID, one per analyte ID, the three result
+  flags, the alcohol-intake categories, the administration routes, the dosing
+  frequencies, the medication-order statuses, and the assessment severity bands. Every
+  locale must define exactly the same key set, and that set must equal the union of the
+  locale-neutral tables: `tests/test_locales.py::TestClinicalLabelParity` fails if a
+  locale is missing a key or invents one, which is what stops a new analyte, route or
+  frequency from shipping translated in one language and untranslated in five.
+- `MEDICATION_NAMES` — a locale-neutral substance ID mapped to the exact spelling **this
+  catalogue** uses for that drug. It is what lets one locale-neutral dose ladder produce
+  "Metformina 850 mg" and "二甲双胍 850 mg" as well as "Metformin 850 mg". Every value
+  must be a medication some condition in this locale actually prescribes; a test checks
+  every one of them, because a name that is merely a good translation but is not in the
+  catalogue would silently never match.
 
 The IDs use international spelling (`haemoglobin`) because they are locale-neutral;
 this English catalogue is US English, like the rest of the base data, so its labels use
@@ -61,4 +74,174 @@ CLINICAL_LABELS: dict[str, str] = {
     "alcohol_low_risk": "Low risk",
     "alcohol_increasing_risk": "Increasing risk",
     "alcohol_higher_risk": "Higher risk",
+    # Administration routes
+    "route_oral": "Oral",
+    "route_intravenous": "Intravenous",
+    "route_subcutaneous": "Subcutaneous",
+    "route_inhaled": "Inhaled",
+    "route_sublingual": "Sublingual",
+    "route_ophthalmic": "Ophthalmic",
+    # Dosing frequencies
+    "frequency_once_daily": "Once daily",
+    "frequency_twice_daily": "Twice daily",
+    "frequency_three_times_daily": "Three times daily",
+    "frequency_four_times_daily": "Four times daily",
+    "frequency_at_night": "At night",
+    "frequency_as_required": "As required",
+    "frequency_once_weekly": "Once weekly",
+    "frequency_every_three_weeks": "Every three weeks",
+    # Medication order status
+    "medication_status_past": "Past",
+    "medication_status_current": "Current",
+    "medication_status_future": "Future",
+    # Assessment severity bands
+    "assessment_minimal": "Minimal",
+    "assessment_mild": "Mild",
+    "assessment_moderate": "Moderate",
+    "assessment_moderately_severe": "Moderately severe",
+    "assessment_severe": "Severe",
+    "assessment_symptoms_absent": "Symptoms absent",
+    "assessment_normal_cognition": "Normal cognition",
+    "assessment_screen_negative": "Negative screen",
+    "assessment_screen_positive": "Positive screen",
+    "alcohol_possible_dependence": "Possible dependence",
+}
+
+# The substances `medication_order()` can dose, named as this catalogue names them.
+MEDICATION_NAMES: dict[str, str] = {
+    "acamprosate": "Acamprosate",
+    "acetaminophen": "Acetaminophen",
+    "acyclovir": "Acyclovir",
+    "albuterol": "Albuterol",
+    "alendronate": "Alendronate",
+    "allopurinol": "Allopurinol",
+    "alprazolam": "Alprazolam",
+    "amitriptyline": "Amitriptyline",
+    "amlodipine": "Amlodipine",
+    "amoxicillin": "Amoxicillin",
+    "anastrozole": "Anastrozole",
+    "apixaban": "Apixaban",
+    "aripiprazole": "Aripiprazole",
+    "aspirin": "Aspirin",
+    "atomoxetine": "Atomoxetine",
+    "atorvastatin": "Atorvastatin",
+    "azathioprine": "Azathioprine",
+    "azithromycin": "Azithromycin",
+    "bicalutamide": "Bicalutamide",
+    "budesonide": "Budesonide",
+    "buprenorphine": "Buprenorphine",
+    "bupropion": "Bupropion",
+    "buspirone": "Buspirone",
+    "calcium_carbonate": "Calcium Carbonate",
+    "carbamazepine": "Carbamazepine",
+    "ceftriaxone": "Ceftriaxone",
+    "cefuroxime": "Cefuroxime",
+    "cephalexin": "Cephalexin",
+    "cetirizine": "Cetirizine",
+    "cholecalciferol": "Cholecalciferol",
+    "cilostazol": "Cilostazol",
+    "ciprofloxacin": "Ciprofloxacin",
+    "clarithromycin": "Clarithromycin",
+    "clindamycin": "Clindamycin",
+    "clopidogrel": "Clopidogrel",
+    "colchicine": "Colchicine",
+    "dexamethasone": "Dexamethasone",
+    "digoxin": "Digoxin",
+    "diltiazem": "Diltiazem",
+    "donepezil": "Donepezil",
+    "doxycycline": "Doxycycline",
+    "duloxetine": "Duloxetine",
+    "dutasteride": "Dutasteride",
+    "empagliflozin": "Empagliflozin",
+    "enoxaparin": "Enoxaparin",
+    "escitalopram": "Escitalopram",
+    "esomeprazole": "Esomeprazole",
+    "famotidine": "Famotidine",
+    "febuxostat": "Febuxostat",
+    "ferrous_sulfate": "Ferrous Sulfate",
+    "finasteride": "Finasteride",
+    "fluoxetine": "Fluoxetine",
+    "fluticasone": "Fluticasone",
+    "folic_acid": "Folic Acid",
+    "furosemide": "Furosemide",
+    "gabapentin": "Gabapentin",
+    "galantamine": "Galantamine",
+    "glimepiride": "Glimepiride",
+    "glyburide": "Glyburide",
+    "haloperidol": "Haloperidol",
+    "hydrochlorothiazide": "Hydrochlorothiazide",
+    "hydrocortisone": "Hydrocortisone",
+    "hydroxychloroquine": "Hydroxychloroquine",
+    "ibuprofen": "Ibuprofen",
+    "insulin": "Insulin",
+    "insulin_glargine": "Insulin Glargine",
+    "lactulose": "Lactulose",
+    "lamotrigine": "Lamotrigine",
+    "latanoprost": "Latanoprost",
+    "letrozole": "Letrozole",
+    "levetiracetam": "Levetiracetam",
+    "levofloxacin": "Levofloxacin",
+    "levothyroxine": "Levothyroxine",
+    "liraglutide": "Liraglutide",
+    "lisinopril": "Lisinopril",
+    "lithium": "Lithium",
+    "loperamide": "Loperamide",
+    "loratadine": "Loratadine",
+    "lorazepam": "Lorazepam",
+    "losartan": "Losartan",
+    "melatonin": "Melatonin",
+    "memantine": "Memantine",
+    "mesalamine": "Mesalamine",
+    "metformin": "Metformin",
+    "methadone": "Methadone",
+    "methimazole": "Methimazole",
+    "methotrexate": "Methotrexate",
+    "methylphenidate": "Methylphenidate",
+    "metoprolol": "Metoprolol",
+    "metronidazole": "Metronidazole",
+    "montelukast": "Montelukast",
+    "naltrexone": "Naltrexone",
+    "naproxen": "Naproxen",
+    "nitrofurantoin": "Nitrofurantoin",
+    "nitroglycerin": "Nitroglycerin",
+    "olanzapine": "Olanzapine",
+    "omeprazole": "Omeprazole",
+    "oseltamivir": "Oseltamivir",
+    "oxybutynin": "Oxybutynin",
+    "pantoprazole": "Pantoprazole",
+    "paroxetine": "Paroxetine",
+    "pembrolizumab": "Pembrolizumab",
+    "phenytoin": "Phenytoin",
+    "pioglitazone": "Pioglitazone",
+    "prednisone": "Prednisone",
+    "pregabalin": "Pregabalin",
+    "propranolol": "Propranolol",
+    "quetiapine": "Quetiapine",
+    "risperidone": "Risperidone",
+    "rivaroxaban": "Rivaroxaban",
+    "rosuvastatin": "Rosuvastatin",
+    "sertraline": "Sertraline",
+    "sildenafil": "Sildenafil",
+    "simvastatin": "Simvastatin",
+    "sitagliptin": "Sitagliptin",
+    "solifenacin": "Solifenacin",
+    "spironolactone": "Spironolactone",
+    "sulfasalazine": "Sulfasalazine",
+    "sumatriptan": "Sumatriptan",
+    "tadalafil": "Tadalafil",
+    "tamoxifen": "Tamoxifen",
+    "tamsulosin": "Tamsulosin",
+    "theophylline": "Theophylline",
+    "timolol": "Timolol",
+    "tiotropium": "Tiotropium",
+    "tolterodine": "Tolterodine",
+    "topiramate": "Topiramate",
+    "tramadol": "Tramadol",
+    "trimethoprim": "Trimethoprim",
+    "ursodiol": "Ursodiol",
+    "valacyclovir": "Valacyclovir",
+    "valproate": "Valproate",
+    "valproic_acid": "Valproic Acid",
+    "venlafaxine": "Venlafaxine",
+    "warfarin": "Warfarin",
 }

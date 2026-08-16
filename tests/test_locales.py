@@ -9,12 +9,22 @@ from conftest import load_brand_name_generator
 from faker import Faker
 
 from faker_healthcare import HealthcareProvider
+from faker_healthcare.assessments import ASSESSMENT_INSTRUMENTS
 from faker_healthcare.clinical_values import (
     ALCOHOL_CATEGORY_THRESHOLDS,
     ALCOHOL_HIGHEST_CATEGORY,
     FLAG_LABEL_KEYS,
     LAB_DEFINITIONS,
     VITAL_DEFINITIONS,
+)
+from faker_healthcare.prescribing import (
+    DOSE_LADDERS,
+    FREQUENCY_IDS,
+    MEDICATION_STATUS_IDS,
+    ROUTE_IDS,
+    frequency_label_key,
+    route_label_key,
+    status_label_key,
 )
 
 
@@ -73,14 +83,27 @@ def _load_constants(locale: str) -> ModuleType:
     return importlib.import_module(f"faker_healthcare.{locale}.constants")
 
 
+def _load_labels_module(locale: str) -> ModuleType:
+    if locale == "en_US":
+        return importlib.import_module("faker_healthcare.clinical_labels")
+    return importlib.import_module(f"faker_healthcare.{locale}.clinical_labels")
+
+
 def _load_clinical_labels(locale: str) -> dict[str, str]:
     """Load the clinical display labels for a given locale."""
-    if locale == "en_US":
-        module = importlib.import_module("faker_healthcare.clinical_labels")
-    else:
-        module = importlib.import_module(f"faker_healthcare.{locale}.clinical_labels")
-    labels: dict[str, str] = module.CLINICAL_LABELS
+    labels: dict[str, str] = _load_labels_module(locale).CLINICAL_LABELS
     return labels
+
+
+def _load_medication_names(locale: str) -> dict[str, str]:
+    """Load the substance ID -> catalogue spelling map for a given locale."""
+    names: dict[str, str] = _load_labels_module(locale).MEDICATION_NAMES
+    return names
+
+
+def _drug_pool(locale: str) -> set[str]:
+    """Every medication some condition in this locale prescribes."""
+    return {medication for data in _load_correlations(locale).values() for medication in data["medications"]}
 
 
 def _disease_named_by_code(locale: str, code: str) -> str:
@@ -280,6 +303,11 @@ class TestLocaleProviders:
             lambda: fake.vital_sign_measurements(disease=unknown),
             lambda: fake.lab_result(disease=unknown),
             lambda: fake.lab_panel(disease=unknown),
+            lambda: fake.medication_order(disease=unknown),
+            lambda: fake.medication_orders(disease=unknown),
+            lambda: fake.assessment_score(disease=unknown),
+            lambda: fake.patient(disease=unknown),
+            lambda: fake.patient_record(disease=unknown),
         ):
             with pytest.raises(ValueError, match=unknown):
                 call()
@@ -338,6 +366,73 @@ class TestLocaleProviders:
             fake.lab_result(analyte="not_an_analyte")
         with pytest.raises(ValueError, match="Unknown vital sign"):
             fake.vital_sign_measurement(name="not_a_vital_sign")
+        with pytest.raises(ValueError, match="Unknown assessment instrument"):
+            fake.assessment_score(instrument="not_an_instrument")
+
+    def test_medication_orders_are_dosed_and_localized_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """One locale-neutral dose ladder, six languages: the substance name, the route,
+        the frequency and the status are this locale's words; the number is not."""
+        fake, locale = fake_locale
+        labels = _load_clinical_labels(locale)
+        names = _load_medication_names(locale)
+        routes = {labels[route_label_key(route)] for route in ROUTE_IDS}
+        frequencies = {labels[frequency_label_key(frequency)] for frequency in FREQUENCY_IDS}
+        statuses = {labels[status_label_key(status)] for status in MEDICATION_STATUS_IDS}
+        by_name = {name: substance for substance, name in names.items()}
+
+        fake.seed_instance(41)
+        for _ in range(200):
+            order = fake.medication_order()
+            ladder = DOSE_LADDERS[by_name[order["medication"]]]
+            assert order["dose"] in ladder["doses"], (locale, order)
+            assert order["unit"] == ladder["unit"], (locale, order)
+            assert order["route"] in routes and order["frequency"] in frequencies, (locale, order)
+            assert order["status"] in statuses, (locale, order)
+
+    def test_the_dose_ladder_reaches_every_locale_through_the_substance_id(self, fake_locale: tuple[Faker, str]) -> None:
+        """Metformin is 500/850/1000 mg in Chinese too — the ladder is not duplicated."""
+        fake, locale = fake_locale
+        names = _load_medication_names(locale)
+        fake.seed_instance(42)
+        diabetes = _disease_named_by_code(locale, "E11.9")
+        orders = [fake.medication_order(disease=diabetes) for _ in range(50)]
+        metformin = [order for order in orders if order["medication"] == names["metformin"]]
+        assert metformin, f"{locale}: metformin never ordered for diabetes"
+        assert all(order["dose"] in (500, 850, 1000) and order["unit"] == "mg" for order in metformin), (locale, metformin[0])
+
+    def test_assessment_bands_are_localized_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        labels = _load_clinical_labels(locale)
+        band_labels = {labels[key] for definition in ASSESSMENT_INSTRUMENTS.values() for _, key in definition["bands"]}
+        fake.seed_instance(43)
+        for _ in range(100):
+            result = fake.assessment_score()
+            # The instrument's NAME is a proper noun and is not translated; the band is.
+            assert result["instrument"] in {definition["name"] for definition in ASSESSMENT_INSTRUMENTS.values()}, locale
+            assert result["severity"] in band_labels, (locale, result)
+
+    def test_patients_and_records_are_correlated_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """Demographic constraints are keyed by ICD-10 code, so they hold in Chinese too."""
+        fake, locale = fake_locale
+        fake.seed_instance(44)
+        preeclampsia = _disease_named_by_code(locale, "O14.90")
+        for _ in range(50):
+            patient = fake.patient(disease=preeclampsia)
+            assert patient["sex"] == "female", (locale, patient)
+            assert 15 <= patient["age"] <= 50, (locale, patient)
+
+        record = fake.patient_record(disease=_disease_named_by_code(locale, "E11.9"))
+        assert record["age"] >= 18
+        assert len(record["vital_signs"]) == len(VITAL_DEFINITIONS)
+        assert record["lab_panel"] and record["medication_orders"]
+
+    def test_nhs_number_is_available_and_valid_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """The provider class is shared, so the identifier is too; the default stays the
+        reserved test range whichever catalogue is loaded."""
+        fake, locale = fake_locale
+        for _ in range(50):
+            number = fake.nhs_number()
+            assert re.fullmatch(r"999 \d{3} \d{4}", number), (locale, number)
 
 
 class TestLocaleSpecificData:
@@ -482,7 +577,20 @@ class TestClinicalLabelParity:
         number no locale could name, and `_label()` would raise at call time instead of
         at test time.
         """
-        expected = {*VITAL_DEFINITIONS, *LAB_DEFINITIONS, *FLAG_LABEL_KEYS.values(), *(key for _, key in ALCOHOL_CATEGORY_THRESHOLDS), ALCOHOL_HIGHEST_CATEGORY}
+        expected = {
+            *VITAL_DEFINITIONS,
+            *LAB_DEFINITIONS,
+            *FLAG_LABEL_KEYS.values(),
+            *(key for _, key in ALCOHOL_CATEGORY_THRESHOLDS),
+            ALCOHOL_HIGHEST_CATEGORY,
+            # The prescribing and assessment vocabularies are IDs in exactly the same
+            # way, so a new route, frequency, status or severity band cannot ship unnamed
+            # either.
+            *(route_label_key(route) for route in ROUTE_IDS),
+            *(frequency_label_key(frequency) for frequency in FREQUENCY_IDS),
+            *(status_label_key(status) for status in MEDICATION_STATUS_IDS),
+            *(key for definition in ASSESSMENT_INSTRUMENTS.values() for _, key in definition["bands"]),
+        }
         assert set(_load_clinical_labels("en_US")) == expected
 
     @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
@@ -521,18 +629,77 @@ class TestClinicalLabelParity:
         them stale.
         """
         package = Path(importlib.import_module(f"faker_healthcare.{locale}").__file__).parent
-        assert not (package / "clinical_values.py").exists(), f"{locale} ships its own copy of the numeric tables"
+        for module in ("clinical_values.py", "prescribing.py", "assessments.py"):
+            assert not (package / module).exists(), f"{locale} ships its own copy of {module}"
 
         provider = _get_provider_for_locale(locale)
-        for attribute in ("vital_definitions", "lab_definitions"):
+        for attribute in ("vital_definitions", "lab_definitions", "dose_ladders", "assessment_instruments"):
             assert attribute not in provider.__dict__, f"{locale} provider redeclares '{attribute}'"
             assert getattr(provider, attribute) is getattr(HealthcareProvider, attribute), f"{locale} provider does not share the base '{attribute}'"
 
     @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
     def test_every_locale_provider_declares_its_own_labels(self, locale: str) -> None:
         provider = _get_provider_for_locale(locale)
-        assert "clinical_labels" in provider.__dict__, f"{locale} provider does not declare clinical_labels"
-        assert provider.clinical_labels == _load_clinical_labels(locale)
+        for attribute, expected in (("clinical_labels", _load_clinical_labels(locale)), ("medication_names", _load_medication_names(locale))):
+            assert attribute in provider.__dict__, f"{locale} provider does not declare {attribute}"
+            assert getattr(provider, attribute) == expected
+
+
+class TestMedicationNameParity:
+    """The other half of the prescribing split: one ladder, six spellings.
+
+    `prescribing.DOSE_LADDERS` is keyed by a locale-neutral substance ID and is never
+    duplicated; each locale's `MEDICATION_NAMES` says what that substance is called in
+    ITS catalogue. Both halves have to hold for a dose to reach a French record: a
+    missing key means an unreachable ladder, and a name that is a fine translation but is
+    not the string the catalogue actually ships would simply never match.
+    """
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_every_locale_names_every_dosed_substance(self, locale: str) -> None:
+        base = set(_load_medication_names("en_US"))
+        actual = set(_load_medication_names(locale))
+        assert not base - actual, f"{locale} is missing medication names: {sorted(base - actual)}"
+        assert not actual - base, f"{locale} names substances no other locale has: {sorted(actual - base)}"
+
+    def test_the_base_names_and_the_ladders_are_the_same_set(self) -> None:
+        assert set(_load_medication_names("en_US")) == set(DOSE_LADDERS)
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_every_name_is_a_medication_that_locale_actually_prescribes(self, locale: str) -> None:
+        """The check that makes the mapping verifiable rather than a promise."""
+        pool = _drug_pool(locale)
+        missing = {substance: name for substance, name in _load_medication_names(locale).items() if name not in pool}
+        assert not missing, f"{locale} names medications its catalogue does not contain: {missing}"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_names_are_distinct_within_a_locale(self, locale: str) -> None:
+        """Two substances sharing one spelling would make the reverse lookup ambiguous,
+        and one of the two ladders unreachable."""
+        names = list(_load_medication_names(locale).values())
+        duplicates = {name for name in names if names.count(name) > 1}
+        assert not duplicates, f"{locale} uses one name for more than one substance: {sorted(duplicates)}"
+
+    @pytest.mark.parametrize("locale", ["pt_BR", "es_ES", "zh_CN"])
+    def test_names_are_actually_localized(self, locale: str) -> None:
+        """Two locales are deliberately absent from this list, for opposite reasons.
+
+        `fr_FR` keeps drug names in English by catalogue convention (see AGENTS.md), so
+        its map IS the English one on purpose. `de_DE` germanizes many names
+        (`Amitriptylin`, `Doxycyclin`) but shares the English spelling for many more,
+        because both are the INN — `Metformin`, `Ibuprofen`, `Warfarin` are simply the
+        same word, and asserting otherwise would demand a wrong translation. What catches
+        a copied file in both is the test above: a name from the wrong language is not in
+        that locale's catalogue at all.
+        """
+        base = _load_medication_names("en_US")
+        names = _load_medication_names(locale)
+        untranslated = [substance for substance, name in names.items() if name == base[substance]]
+        assert len(untranslated) <= len(base) // 3, f"{locale} looks copied from English: {sorted(untranslated)}"
+
+    def test_zh_cn_medication_names_contain_no_japanese_kana(self) -> None:
+        offenders = [name for name in _load_medication_names("zh_CN").values() if JAPANESE_KANA_RE.search(name)]
+        assert not offenders, f"zh_CN medication names contain Japanese kana: {offenders}"
 
 
 class TestZhBrandCatalogue:

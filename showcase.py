@@ -157,6 +157,48 @@ def showcase_measurements() -> None:
             print(f"  • {result['analyte']:<34} {result['value']} {result['unit']:<14} [{result['reference_low']}-{result['reference_high']}] {result['flag']}")
 
 
+def showcase_records() -> None:
+    """Demonstrate the records half: orders, assessments, identifiers, whole records."""
+    print_header("Medication Orders, Assessments & Identifiers")
+
+    print_subheader("Medication Orders (dose, route and frequency belong to the drug)")
+    for disease in ("Type 2 Diabetes", "Asthma", "Rheumatoid Arthritis"):
+        print(f"\n{disease}")
+        for order in fake.medication_orders(disease=disease, count=3):
+            dose = "no verified adult dose" if order["dose"] is None else f"{order['dose']} {order['unit']}, {order['route']}, {order['frequency']}"
+            print(f"  • [{order['status']:<8}] {order['medication']:<22} {dose}")
+
+    print_subheader("Assessment Scores (the score and its band — never the items)")
+    for instrument in ("phq9", "gad7", "mmse", "madrs", "audit_c", "cage"):
+        result = fake.assessment_score(instrument=instrument)
+        print(f"  • {result['instrument']:<8} {result['score']:>3}/{result['max_score']:<3} {result['severity']}")
+
+    print_subheader("NHS Numbers (reserved 999 test range by default, Modulus 11 valid)")
+    for _ in range(4):
+        print(f"  • {fake.nhs_number()}")
+
+    print_subheader("Demographics the Condition Allows")
+    for disease in ("Preeclampsia", "Prostate Cancer", "Croup", "Type 2 Diabetes"):
+        patient = fake.patient(disease=disease)
+        print(f"  • {disease:<18} {patient['sex']:<7} age {patient['age']:<4} born {patient['date_of_birth']}")
+
+    print_subheader("A Complete Patient Record")
+    record = fake.patient_record(disease="Depression")
+    print(f"\n{record['disease']} ({record['icd10']}) — {record['sex']}, age {record['age']}, born {record['date_of_birth']}")
+    print(f"Specialty:    {record['medical_specialty']}")
+    print(f"Assessment:   {record['assessment']['instrument']} {record['assessment']['score']}/{record['assessment']['max_score']} ({record['assessment']['severity']})")
+    print("Vital signs:")
+    for measurement in record["vital_signs"]:
+        print(f"  • {measurement['name']:<28} {measurement['value']} {measurement['unit']}")
+    print("Laboratory panel:")
+    for result in record["lab_panel"]:
+        print(f"  • {result['analyte']:<34} {result['value']} {result['unit']:<14} {result['flag']}")
+    print("Medications:")
+    for order in record["medication_orders"]:
+        dose = "—" if order["dose"] is None else f"{order['dose']} {order['unit']}, {order['route']}, {order['frequency']}"
+        print(f"  • [{order['status']:<8}] {order['medication']:<22} {dose}")
+
+
 def showcase_patient_scenarios() -> None:
     """Demonstrate complete patient scenario generation."""
     print_header("Complete Patient Scenarios")
@@ -241,6 +283,7 @@ def main() -> None:
     showcase_symptoms_and_procedures()
     showcase_correlated_data()
     showcase_measurements()
+    showcase_records()
     showcase_patient_scenarios()
     showcase_multi_language()
 

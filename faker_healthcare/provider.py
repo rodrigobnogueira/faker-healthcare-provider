@@ -1,9 +1,17 @@
+from calendar import monthrange
 from collections.abc import Mapping
-from typing import TypedDict
+from datetime import date, timedelta
 
 from faker.providers import BaseProvider, ElementsType
 
-from .clinical_labels import CLINICAL_LABELS
+from .assessments import (
+    ASSESSMENT_INSTRUMENTS,
+    ASSESSMENT_SEVERITY_TIERS,
+    CONDITION_ASSESSMENTS,
+    PSYCHIATRIC_ICD10_CHAPTER,
+    band_label_key,
+)
+from .clinical_labels import CLINICAL_LABELS, MEDICATION_NAMES
 from .clinical_values import (
     ADULT_AGE_RANGE,
     ALCOHOL_WEEKLY_BANDS,
@@ -15,16 +23,21 @@ from .clinical_values import (
     BODY_PROFILES,
     CONDITION_LAB_EFFECTS,
     CONDITION_VITAL_EFFECTS,
+    DEMOGRAPHIC_CONSTRAINTS,
     FLAG_LABEL_KEYS,
     HEIGHT_LOSS_CM_PER_YEAR_AFTER,
     LAB_DEFINITIONS,
+    PATIENT_AGE_RANGE,
     PULSE_PRESSURE_RANGE_MMHG,
     SEVERITY_RESOLUTION,
     SEVERITY_TIERS,
+    SEXES,
     VITAL_DEFINITIONS,
+    age_range_for,
     alcohol_category_key,
     flag_for,
     from_steps,
+    is_paediatric_only,
     measurement_band,
     to_steps,
 )
@@ -38,24 +51,34 @@ from .constants import (
     NON_DRUG_INTERVENTIONS,
     VITAL_SIGNS,
 )
+from .identifiers import NHS_TEST_RANGE_PREFIX, format_nhs_number, nhs_check_digit
+from .prescribing import (
+    DEFAULT_ORDER_COUNT_RANGE,
+    DOSE_LADDERS,
+    MEDICATION_STATUS_BANDS,
+    frequency_label_key,
+    route_label_key,
+    status_label_key,
+)
 from .types import (
+    AssessmentInstrument,
+    AssessmentScore,
     BloodPressure,
     BodyMeasurements,
+    DemographicConstraint,
     Direction,
     DiseaseData,
+    DoseLadder,
     LabDefinition,
     LabResult,
+    MedicationOrder,
+    Patient,
+    PatientRecord,
+    PatientScenario,
+    Sex,
     VitalDefinition,
     VitalMeasurement,
 )
-
-
-class PatientScenario(TypedDict):
-    disease: str
-    icd10: str
-    symptoms: list[str]
-    medications: list[str]
-    medical_specialty: str
 
 
 class HealthcareProvider(BaseProvider):
@@ -69,6 +92,7 @@ class HealthcareProvider(BaseProvider):
     """
 
     _disease_correlations: dict[str, DiseaseData] | None = None
+    _substance_ids: dict[str, str] | None = None
 
     @property
     def disease_correlations(self) -> dict[str, DiseaseData]:
@@ -156,11 +180,19 @@ class HealthcareProvider(BaseProvider):
     # Each locale provider overrides this with its own CLINICAL_LABELS.
     clinical_labels: Mapping[str, str] = CLINICAL_LABELS
 
-    # ...and the numbers are not. Units, reference intervals and bounds are the same in
-    # every language, so they are declared once in `faker_healthcare/clinical_values.py`
-    # and deliberately NOT redeclared per locale; see that module's docstring.
+    # ...and so is the name of a drug, which is why the dose ladders are keyed by a
+    # locale-neutral substance ID and this maps that ID to the spelling this locale's
+    # catalogue uses. Each locale provider overrides it with its own MEDICATION_NAMES.
+    medication_names: Mapping[str, str] = MEDICATION_NAMES
+
+    # ...and the numbers are not. Units, reference intervals, bounds, dose ladders and
+    # assessment ranges are the same in every language, so they are declared once in
+    # `clinical_values.py`, `prescribing.py` and `assessments.py`, and deliberately NOT
+    # redeclared per locale; see those modules' docstrings.
     vital_definitions: Mapping[str, VitalDefinition] = VITAL_DEFINITIONS
     lab_definitions: Mapping[str, LabDefinition] = LAB_DEFINITIONS
+    dose_ladders: Mapping[str, DoseLadder] = DOSE_LADDERS
+    assessment_instruments: Mapping[str, AssessmentInstrument] = ASSESSMENT_INSTRUMENTS
 
     def disease(self) -> str:
         """Return a random disease name."""
@@ -314,7 +346,7 @@ class HealthcareProvider(BaseProvider):
         if disease is None:
             disease = self.disease()
         elif disease not in self.disease_correlations:
-            raise ValueError(f"Disease '{disease}' not found in diseases list")
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
 
         disease_data = self.disease_correlations[disease]
         # Both ranges are clamped to what the condition actually has, so a condition with
@@ -661,3 +693,322 @@ class HealthcareProvider(BaseProvider):
         # Iterated in definition order, never in set order, so the panel is stable under
         # PYTHONHASHSEED and a seeded run is reproducible.
         return [self.lab_result(analyte=analyte, disease=disease) for analyte in self.lab_definitions if analyte in chosen]
+
+    # ----------------------------------------------------------------------------------
+    # Medication orders
+    # ----------------------------------------------------------------------------------
+
+    @property
+    def substance_ids(self) -> Mapping[str, str]:
+        """This locale's medication names mapped back to their locale-neutral IDs.
+
+        Derived from `medication_names`, so a locale declares the mapping once and in one
+        direction. Cached per instance because a record builds several orders.
+        """
+        if self._substance_ids is None:
+            self._substance_ids = {name: substance for substance, name in self.medication_names.items()}
+        return self._substance_ids
+
+    def _orderable_medications(self, disease: str | None) -> list[tuple[str, str | None]]:
+        """(medication name, substance ID or None) pairs an order may be written for.
+
+        Without a disease the pool is the substances that HAVE a dose ladder, so an order
+        drawn at random always carries a dose. With one it is that condition's own
+        treatments, preferring the ones with a ladder — the same shape as
+        `lab_result(disease=...)`, which prefers the analytes that condition moves.
+
+        Non-drug treatments (surgery, a device, a diet, "No Medications") are excluded:
+        they are legitimate entries in a condition's `medications`, but a dose, a route
+        and a frequency for "Surgery" would be nonsense. `intervention()` exposes them.
+        """
+        if disease is None:
+            return [(name, substance) for substance, name in self.medication_names.items()]
+        if disease not in self.disease_correlations:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+        interventions = set(self.non_drug_interventions)
+        drugs = [medication for medication in self.disease_correlations[disease]["medications"] if medication not in interventions]
+        dosed = [(medication, self.substance_ids[medication]) for medication in drugs if medication in self.substance_ids]
+        return dosed or [(medication, None) for medication in drugs]
+
+    def _medication_order(self, medication: str, substance: str | None) -> MedicationOrder:
+        """Build one order, dosing it only if this substance has a ladder."""
+        roll = self.random_int(1, 100)
+        status = next((band[1] for band in MEDICATION_STATUS_BANDS if roll <= band[0]), MEDICATION_STATUS_BANDS[-1][1])
+        order: MedicationOrder = {
+            "medication": medication,
+            "dose": None,
+            "unit": None,
+            "route": None,
+            "frequency": None,
+            "status": self._label(status_label_key(status)),
+        }
+        if substance is None or substance not in self.dose_ladders:
+            return order
+        ladder = self.dose_ladders[substance]
+        order["dose"] = self.random_element(ladder["doses"])
+        order["unit"] = ladder["unit"]
+        order["route"] = self._label(route_label_key(ladder["route"]))
+        order["frequency"] = self._label(frequency_label_key(self.random_element(ladder["frequencies"])))
+        return order
+
+    def medication_order(self, disease: str | None = None) -> MedicationOrder:
+        """Return one prescribed medication with its dose, route, frequency and status.
+
+        `status` is `past`, `current` or `future` in this locale's words: a record needs
+        the medications a patient used to take and is booked to start, not only the ones
+        they take today.
+
+        The dose is never a random milligram figure. It is drawn from the dispensed
+        strengths of that substance (`faker_healthcare/prescribing.py`), and the route and
+        frequency come from the same ladder, so insulin is subcutaneous and methotrexate
+        is weekly. A substance with no ladder — a drug class such as "Antibiotics", or a
+        cytotoxic whose real dose is body-surface-area based — returns `None` for the
+        dose, the unit, the route and the frequency rather than an invented number.
+
+        Args:
+            disease: Optional disease name. The order is then one of that condition's own
+                treatments, preferring the ones this package can dose.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations, or if the
+                condition prescribes no drug at all (cataracts, whose treatments are
+                surgery, glasses and magnifiers).
+        """
+        pool = self._orderable_medications(disease)
+        if not pool:
+            raise ValueError(f"Disease '{disease}' prescribes no drug, only non-drug interventions; use intervention() or medications()")
+        return self._medication_order(*self.random_element(pool))
+
+    def medication_orders(self, disease: str | None = None, count: int | None = None) -> list[MedicationOrder]:
+        """Return several distinct medication orders, as a medication list.
+
+        Distinct: no substance appears twice, because a record listing metformin twice
+        with two different doses is a record nobody would print.
+
+        Args:
+            disease: Optional disease name; the orders are then that condition's own
+                treatments.
+            count: How many orders (1-4 if None), capped at the number of distinct
+                medications available.
+
+        Returns:
+            A list, **empty** for a condition that prescribes no drug at all — the honest
+            answer, and the reason this method does not raise where `medication_order()`
+            does.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations, or count is
+                below 1.
+        """
+        if count is not None and count < 1:
+            raise ValueError(f"count must be at least 1, got {count}")
+        pool = self._orderable_medications(disease)
+        if not pool:
+            return []
+        if count is None:
+            count = self.random_int(*DEFAULT_ORDER_COUNT_RANGE)
+        chosen = self.random_elements(pool, length=min(count, len(pool)), unique=True)
+        return [self._medication_order(medication, substance) for medication, substance in chosen]
+
+    # ----------------------------------------------------------------------------------
+    # Assessment scores
+    #
+    # A score, its maximum, and its severity band — never the instrument's items. See
+    # `faker_healthcare/assessments.py` for why that boundary exists.
+    # ----------------------------------------------------------------------------------
+
+    def _draw_assessment_score(self, low: int, high: int, worst_at_high: bool) -> int:
+        """Draw a score in [low, high], weighted towards the healthy end of that band.
+
+        `worst_at_high` says which end is which, and is what makes the MMSE work: 30 is
+        a normal examination there, so its scores cluster at the top of the band while a
+        PHQ-9's cluster at the bottom.
+        """
+        roll = self.random_int(1, 100)
+        _, mildest, harshest = next((tier for tier in ASSESSMENT_SEVERITY_TIERS if roll <= tier[0]), ASSESSMENT_SEVERITY_TIERS[-1])
+        severity = mildest + (harshest - mildest) * (self.random_int(0, SEVERITY_RESOLUTION) / SEVERITY_RESOLUTION)
+        offset = round((high - low) * severity)
+        return low + offset if worst_at_high else high - offset
+
+    def assessment_score(self, instrument: str | None = None, disease: str | None = None) -> AssessmentScore:
+        """Return one scored assessment: instrument, score, maximum, severity band.
+
+        Four fields, deliberately. The instrument's items, questions, response options
+        and scoring instructions are NOT reproduced anywhere in this package, and must
+        never be added: most of these instruments are under active copyright, while a
+        score is a number about a fictional patient. `faker_healthcare/assessments.py`
+        states the boundary in full.
+
+        The instrument name is not translated — PHQ-9 is PHQ-9 in every language — but
+        the severity band is, like every other display word the measurement API returns.
+
+        Args:
+            instrument: Optional instrument ID: `'phq9'`, `'gad7'`, `'mmse'`, `'madrs'`,
+                `'audit_c'` or `'cage'`. Random if None, preferring the instruments the
+                given condition is actually rated with.
+            disease: Optional disease name. A condition this package associates with the
+                instrument scores at or past that instrument's published cut-off — below
+                it for the MMSE, where a low score is the abnormal one — so a depression
+                record does not come back with a PHQ-9 of 2.
+
+        Raises:
+            ValueError: If the instrument or the disease is unknown.
+        """
+        correlated: tuple[str, ...] = ()
+        if disease is not None:
+            if disease not in self.disease_correlations:
+                raise ValueError(f"Disease '{disease}' not found in disease correlations")
+            correlated = CONDITION_ASSESSMENTS.get(self.disease_correlations[disease]["icd10"], ())
+        if instrument is None:
+            instrument = self.random_element(correlated or tuple(self.assessment_instruments))
+        elif instrument not in self.assessment_instruments:
+            raise ValueError(f"Unknown assessment instrument '{instrument}'; expected one of: {', '.join(self.assessment_instruments)}")
+
+        definition = self.assessment_instruments[instrument]
+        worst_at_high = definition["higher_is_worse"]
+        if instrument in correlated:
+            # Land in the clinically significant part of the scale, which is above the
+            # cut-off for every instrument here except the MMSE, where it is below.
+            band = (definition["significant_from"], definition["max_score"]) if worst_at_high else (0, definition["significant_from"])
+        else:
+            band = (0, definition["max_score"])
+        score = self._draw_assessment_score(band[0], band[1], worst_at_high)
+
+        return {
+            "instrument": definition["name"],
+            "score": score,
+            "max_score": definition["max_score"],
+            "severity": self._label(band_label_key(instrument, score)),
+        }
+
+    # ----------------------------------------------------------------------------------
+    # Identifiers
+    # ----------------------------------------------------------------------------------
+
+    def nhs_number(self, official_test_range: bool = True) -> str:
+        """Return an NHS Number: ten digits, Modulus 11 valid, grouped 3-3-4.
+
+        Defaults to the **999 range NHS England reserves for testing**, so a generated
+        number can never be a real patient's. `official_test_range=False` draws from the
+        full range: it produces numbers indistinguishable from issued ones, which is
+        occasionally what you need and always something to opt into deliberately. See
+        `faker_healthcare/identifiers.py` for the algorithm and the specification it
+        comes from.
+        """
+        while True:
+            leading = NHS_TEST_RANGE_PREFIX if official_test_range else str(self.random_int(1, 9))
+            stem = leading + "".join(str(self.random_int(0, 9)) for _ in range(9 - len(leading)))
+            check_digit = nhs_check_digit(stem)
+            # Step 6 of the specification: a stem whose check digit works out to 10 is
+            # never issued, so it is redrawn rather than truncated into a valid-looking
+            # number that no validator would accept.
+            if check_digit < 10:
+                return format_nhs_number(stem + str(check_digit))
+
+    # ----------------------------------------------------------------------------------
+    # Correlated patients and records
+    # ----------------------------------------------------------------------------------
+
+    def _constraint(self, code: str) -> DemographicConstraint:
+        return DEMOGRAPHIC_CONSTRAINTS.get(code, {})
+
+    def _birth_date(self, age: int, reference_date: date) -> date:
+        """Draw a date of birth that makes someone exactly `age` on `reference_date`."""
+        newest = _shift_years(reference_date, age)
+        oldest = _shift_years(reference_date, age + 1) + timedelta(days=1)
+        return oldest + timedelta(days=self.random_int(0, (newest - oldest).days))
+
+    def _demographics(self, code: str, age_range: tuple[int, int], reference_date: date | None) -> tuple[Sex, int, date]:
+        """Draw a sex, an age and a date of birth that satisfy a condition's constraint."""
+        constraint = self._constraint(code)
+        sex: Sex = constraint["sex"] if "sex" in constraint else self.random_element(SEXES)
+        minimum_age, maximum_age = age_range_for(constraint, age_range)
+        age = self.random_int(minimum_age, maximum_age)
+        return sex, age, self._birth_date(age, reference_date or date.today())
+
+    def patient(self, disease: str | None = None, reference_date: date | None = None) -> Patient:
+        """Return a patient scenario with demographics the condition actually allows.
+
+        The catalogue has female-only conditions (preeclampsia, endometriosis, PCOS),
+        male-only ones (prostate cancer, benign prostatic hyperplasia) and conditions of
+        early childhood (croup, bronchiolitis). Drawing a sex and an age beside a
+        diagnosis without consulting them is how a male preeclampsia patient reaches a
+        test suite; `clinical_values.DEMOGRAPHIC_CONSTRAINTS` is what this method
+        consults, and it is keyed by ICD-10 code so it holds in all six languages.
+
+        `sex` is a locale-neutral ID (`'male'` / `'female'`) rather than a display word,
+        because it is also the argument `body_measurements(sex=...)` takes.
+
+        Args:
+            disease: Optional disease name; random if None.
+            reference_date: The date `age` is correct on, and therefore the date
+                `date_of_birth` is computed against. Defaults to today — the one clock
+                read in this package, deliberately isolated here and overridable, so a
+                fixture that must be byte-identical next year can pin it.
+
+        Raises:
+            ValueError: If disease is given but not found in correlations.
+        """
+        scenario = self.patient_scenario(disease=disease)
+        sex, age, date_of_birth = self._demographics(scenario["icd10"], PATIENT_AGE_RANGE, reference_date)
+        return {**scenario, "sex": sex, "age": age, "date_of_birth": date_of_birth}
+
+    def patient_record(self, disease: str | None = None, reference_date: date | None = None) -> PatientRecord:
+        """Return a complete correlated record: the whole package in one call.
+
+        Demographics that satisfy the condition's constraints, the scenario (symptoms,
+        medications, ICD-10 code, specialty), a full set of vital signs, a laboratory
+        panel, medication orders, and — only for a condition this package scores, meaning
+        a psychiatric one or Alzheimer's disease — an assessment. Everything in it agrees
+        with the diagnosis and with everything else in it.
+
+        **Adults only**, which is the same limit `body_measurements()` states: the
+        reference intervals, the dose ladders and the anthropometry in this package are
+        adult data, and a two-year-old's normal heart rate is not 60-100/min. A
+        paediatric-only condition therefore raises rather than being given an adult
+        record, and `disease=None` draws only from conditions an adult can have. Use
+        `patient()` for demographics at any age.
+
+        Args:
+            disease: Optional disease name; a random adult condition if None.
+            reference_date: As for `patient()`.
+
+        Raises:
+            ValueError: If disease is not in correlations, or is paediatric-only.
+        """
+        if disease is None:
+            disease = self.random_element([name for name, data in self.disease_correlations.items() if not is_paediatric_only(data["icd10"])])
+        elif disease not in self.disease_correlations:
+            raise ValueError(f"Disease '{disease}' not found in disease correlations")
+
+        code = self.disease_correlations[disease]["icd10"]
+        if is_paediatric_only(code):
+            raise ValueError(f"Disease '{disease}' occurs only in children, and this package's reference data is adult; use patient() for its demographics")
+
+        scenario = self.patient_scenario(disease=disease)
+        sex, age, date_of_birth = self._demographics(code, (ADULT_AGE_RANGE[0], PATIENT_AGE_RANGE[1]), reference_date)
+        record: PatientRecord = {
+            **scenario,
+            "sex": sex,
+            "age": age,
+            "date_of_birth": date_of_birth,
+            "vital_signs": self.vital_sign_measurements(disease=disease),
+            "lab_panel": self.lab_panel(disease=disease),
+            "medication_orders": self.medication_orders(disease=disease),
+        }
+        # Psychiatric conditions are recognised by their ICD-10 chapter rather than by
+        # the specialty string, which is translated in all six catalogues. Alzheimer's
+        # disease is the one non-chapter-F condition with an instrument (the MMSE).
+        if code.startswith(PSYCHIATRIC_ICD10_CHAPTER) or code in CONDITION_ASSESSMENTS:
+            record["assessment"] = self.assessment_score(disease=disease)
+        return record
+
+
+def _shift_years(reference_date: date, years: int) -> date:
+    """Return the same calendar day `years` years earlier, clamped to a real date.
+
+    29 February minus one year is 28 February; nothing else here needs a calendar.
+    """
+    year = reference_date.year - years
+    day = min(reference_date.day, monthrange(year, reference_date.month)[1])
+    return date(year, reference_date.month, day)

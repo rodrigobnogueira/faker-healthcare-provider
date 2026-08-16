@@ -114,6 +114,9 @@ releases missing the `G40.909` condition the other five locales had and carrying
   and no duplicated labels, and not simply copied from English. The numeric tables those
   labels name are the other deliberate exemption — they are locale-neutral by design (see
   *Measurements and lab values* below), and a test fails if a locale duplicates them;
+- the **key set of every locale's `MEDICATION_NAMES`** against the base's and against the
+  dose ladders, with every value checked to be a medication that locale's catalogue
+  actually prescribes;
 - that `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug
   name reached the Simplified Chinese catalogue.
 
@@ -171,11 +174,12 @@ the "N diseases" count in each module docstring.
   condition prescribes fails `tests/test_locales.py`.
 - **`disease=` accessors raise on an unknown disease.** `icd10_code`, `symptom`,
   `medication`, `disease_symptoms`, `medications`, `patient_scenario`, `blood_pressure`,
-  `vital_sign_measurement`, `vital_sign_measurements`, `lab_result` and `lab_panel` all
-  raise `ValueError`, as do `lab_result(analyte=...)` and
-  `vital_sign_measurement(name=...)` for an unknown measurement ID. Never make one fall
-  back to a random draw: the caller asked about one condition and would silently receive
-  another's data.
+  `vital_sign_measurement`, `vital_sign_measurements`, `lab_result`, `lab_panel`,
+  `medication_order`, `medication_orders`, `assessment_score`, `patient` and
+  `patient_record` all raise `ValueError`, as do `lab_result(analyte=...)`,
+  `vital_sign_measurement(name=...)` and `assessment_score(instrument=...)` for an unknown
+  ID. Never make one fall back to a random draw: the caller asked about one condition and
+  would silently receive another's data.
 
 ### Measurements and lab values
 
@@ -219,6 +223,82 @@ reference interval printed beside it, `bmi` is computed from the height and weig
 returned with it. The API models **direction, not severity** — a diabetic HbA1c is high,
 but nothing here knows how well controlled that diabetes is — and `body_measurements()`
 covers adults only, refusing a paediatric age rather than extrapolating an adult curve.
+
+### Medication orders, assessments and patients
+
+The records half — `medication_order()`, `medication_orders()`, `assessment_score()`,
+`nhs_number()`, `patient()`, `patient_record()` — is split exactly the same way. The
+numbers live once, in `faker_healthcare/prescribing.py` (dose ladders, routes,
+frequencies, order statuses), `faker_healthcare/assessments.py` (instrument ranges and
+severity bands) and `faker_healthcare/clinical_values.py` (`DEMOGRAPHIC_CONSTRAINTS`).
+The words live in the six `clinical_labels.py` files.
+
+- **A dose ladder belongs to a substance, and so do its route and its frequencies.**
+  Insulin is subcutaneous whatever it is prescribed for; methotrexate is weekly. Drawing
+  the three independently produced "Insulin 500 mg orally four times daily", which is why
+  they are one table entry. Doses are the strengths actually dispensed, not a range to
+  draw a random integer from — 637 mg of metformin is not a thing.
+- **Never invent a dose.** A substance with no ladder returns `None` for dose, unit, route
+  and frequency, and that is the correct answer for a drug *class* ("Antibiotics") and for
+  cytotoxic chemotherapy, whose real doses are body-surface-area based. Adding a ladder
+  means an adult dose you can source (the BNF or the manufacturer's SmPC, named in the PR)
+  **and** the substance's name in all six `MEDICATION_NAMES` maps, in the same PR.
+- **A `MEDICATION_NAMES` value must be a string that locale's catalogue really contains**,
+  not merely a good translation — otherwise the lookup silently never matches and the drug
+  quietly loses its dose. A test checks every entry against the catalogue. Where a
+  catalogue spells one drug two ways, map the correct spelling and leave the other
+  occurrence undosed rather than adding a wrong name.
+- **Demographic constraints are locale-neutral and keyed by ICD-10 code.** "Female" is a
+  fact about preeclampsia, not a word about it. Constrain only what is unambiguous, and
+  when you decide *not* to constrain something that looks constrained, write down why:
+  breast cancer is not female-only, and congenital heart disease and cystic fibrosis are
+  no longer paediatric conditions.
+- **`patient_record()` is adults only**, for the same reason `body_measurements()` is: the
+  reference intervals, dose ladders and anthropometry here are adult data. It refuses a
+  paediatric-only condition instead of ageing the patient up. `patient()` will happily
+  generate a two-year-old with bronchiolitis, because it returns no measurements.
+
+### Assessment instruments: ship the score, never the questions
+
+**Do not add an instrument's item text to this repository.** Not the items, not the
+questions, not the response options, not the answer wording, not the scoring instructions
+— not in `assessments.py`, not in a locale package, not in a docstring, a test fixture, an
+example or the README.
+
+Most of these instruments are under **active copyright**; several are licensed
+commercially, and their translations are separately licensed works. Putting the items in
+an MIT-licensed package would redistribute someone else's literary property under a licence
+its owner never granted, in six languages, to everyone who installs it. A **score** is not
+that: "PHQ-9 = 14" is a number about a fictional patient, and it is exactly what a medical
+record or a de-identification test rig actually holds — which is why the score is the half
+worth shipping.
+
+So a generated assessment carries four things: the instrument's name, the score, the
+maximum, and the severity band. `tests/test_records.py::TestAssessmentBoundary` asserts
+that, and a pull request that adds item content will be closed rather than revised.
+
+Two more rules in the same area:
+
+- **Six instruments** — PHQ-9, GAD-7, MMSE, MADRS, AUDIT-C, CAGE. A seventh is a maintainer
+  decision before it is a table entry.
+- **Classify with ICD-10 only.** No other diagnostic manual is referenced anywhere in this
+  package, in data, API names, comments or docs, and none should be added.
+
+### Generated identifiers default to the reserved test range
+
+`nhs_number()` returns a number from the **999 range NHS England reserves for testing** and
+never issues to a patient. That is the default on purpose: a checksum-valid identifier is,
+by construction, one that could belong to a real person, and a synthetic record carrying
+one can be matched against or mistaken for a real record.
+`nhs_number(official_test_range=False)` exists for testing something that rejects the
+reserved prefix, and is opt-in.
+
+If you add another issued identifier, follow the same shape: default to whatever range the
+issuing authority reserves, make the unreserved mode an explicit argument, implement the
+check digit from the published specification and **cite it** in the module docstring, and
+test it against published examples the code was not written around (plus a single-digit
+change that must stop validating). If the authority publishes no reserved range, say so in
+the docstring and the PR rather than quietly generating live-space identifiers.
 
 ### Brand drug names come from a screened list
 
@@ -357,6 +437,14 @@ Rules for any code that generates a value:
   there already cover every table entry — each correlation is checked to actually bite,
   and each flag to agree with its value — so a well-formed addition is mostly covered by
   tests that already exist.
+- **New dose ladder, route, frequency, severity band, demographic constraint or
+  identifier:** the locale-neutral entry (`prescribing.py`, `assessments.py`,
+  `clinical_values.py` or `identifiers.py`), its words in **all six** `clinical_labels.py`
+  files — plus the six `MEDICATION_NAMES` entries for a new ladder — and an assertion in
+  `tests/test_records.py`. Its parametrized suites already iterate every ladder, every
+  instrument and every constraint, so a well-formed addition is largely covered; what is
+  not covered automatically is the *source* for the dose, which belongs in the PR
+  description.
 - **README examples are executable.** `tests/test_readme.py` runs every fenced `python`
   block in `README.md` and asserts that a non-English example loads that locale's own
   catalogue. Both defects it now prevents shipped for months: the README documented a

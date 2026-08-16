@@ -21,16 +21,30 @@ changes small, data-focused, and easy to verify.
   and lab-analyte definitions (units, reference intervals, bounds, precision) and the
   ICD-10-keyed `CONDITION_LAB_EFFECTS` / `CONDITION_VITAL_EFFECTS` correlations. No
   translated text lives here, and it is never duplicated per locale.
+- `faker_healthcare/prescribing.py` — the **locale-neutral** dose ladders: per substance
+  ID, the dispensed strengths, the unit, the route and the plausible frequencies, plus the
+  route/frequency/order-status IDs. Never duplicated per locale.
+- `faker_healthcare/assessments.py` — the **locale-neutral** definitions of the six scored
+  instruments (maximum, severity bands, cut-off, which conditions use which). Read its
+  docstring before touching it: it carries the copyright boundary that forbids item text.
+- `faker_healthcare/identifiers.py` — generated patient identifiers and their check-digit
+  arithmetic (currently the NHS Number, Modulus 11), and the reserved-test-range rule.
 - `faker_healthcare/clinical_labels.py` and `faker_healthcare/<locale>/clinical_labels.py` —
-  the display words for those IDs (analyte and vital names, the low/normal/high flags, the
-  alcohol categories). Every locale defines the same key set.
-- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` / measurement TypedDicts
-  (the data shapes).
+  the display words for those IDs: `CLINICAL_LABELS` (analyte and vital names, the
+  low/normal/high flags, the alcohol categories, the administration routes, the dosing
+  frequencies, the medication-order statuses, the assessment severity bands) and
+  `MEDICATION_NAMES` (substance ID → the spelling that locale's catalogue uses). Every
+  locale defines the same key set for both.
+- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` / `Patient` /
+  `PatientRecord` / measurement, order and assessment TypedDicts (the data shapes).
+  Optional keys use the two-class TypedDict form, not `typing.NotRequired`, because the
+  package supports Python 3.10.
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
   `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`,
   `clinical_labels.py`, and `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
-  `test_clinical_values.py`, `test_performance.py`, `test_readme.py`, and `conftest.py`
+  `test_clinical_values.py`, `test_records.py`, `test_performance.py`, `test_readme.py`,
+  and `conftest.py`
   (which loads the generator script so the tests re-run its screens instead of restating
   them).
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
@@ -105,10 +119,12 @@ visible, wrong-looking record.
 **An accessor that takes a `disease=` argument must RAISE `ValueError` for a disease it does
 not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications`,
 `patient_scenario`, `blood_pressure`, `vital_sign_measurement`, `vital_sign_measurements`,
-`lab_result` and `lab_panel` all do. Never fall back to an uncorrelated random draw: the
+`lab_result`, `lab_panel`, `medication_order`, `medication_orders`, `assessment_score`,
+`patient` and `patient_record` all do. Never fall back to an uncorrelated random draw: the
 caller asked about one condition and would silently receive another condition's data, which
 is precisely the failure this library exists to prevent. The same applies to an unknown
-measurement ID (`lab_result(analyte=...)`, `vital_sign_measurement(name=...)`).
+measurement or instrument ID (`lab_result(analyte=...)`,
+`vital_sign_measurement(name=...)`, `assessment_score(instrument=...)`).
 
 ## Measurements (the locale-neutral half)
 
@@ -152,7 +168,63 @@ measurement ID (`lab_result(analyte=...)`, `vital_sign_measurement(name=...)`).
   here knows how advanced a condition is, and no method should claim to.
 - **Adult data only.** `body_measurements()` refuses a paediatric age rather than
   extrapolating an adult curve; real growth references (WHO/CDC charts) are a data import,
-  with the licence review that implies.
+  with the licence review that implies. `patient_record()` is bound by the same limit and
+  refuses a paediatric-only condition; `patient()`, which returns no measurements, is not.
+
+## Records (orders, assessments, demographics, identifiers)
+
+`medication_order()`, `medication_orders()`, `assessment_score()`, `nhs_number()`,
+`patient()` and `patient_record()` are the second half of the same design, and the same
+split applies: **numeric tables are locale-neutral, only words are translated.**
+
+- **Dose ladders live once**, in `prescribing.py`, keyed by substance ID. A ladder carries
+  the dispensed strengths, the unit, the **route** and the plausible **frequencies**,
+  because all three belong to the substance: insulin is subcutaneous whatever it treats,
+  methotrexate is weekly. Three independent draws produce "Insulin 500 mg orally four
+  times daily".
+- **Never emit an invented dose.** A substance with no verified adult ladder returns
+  `None` for dose, unit, route and frequency. Cytotoxic chemotherapy is deliberately
+  absent (real doses are body-surface-area based), and so are drug *class* names, which
+  have no dose at all. Adding a ladder means naming an adult dose you can source (BNF or
+  the SmPC), in the same PR as the six `MEDICATION_NAMES` entries for it.
+- **`MEDICATION_NAMES` is the bridge between the two halves.** It maps the substance ID to
+  the exact string that locale's catalogue ships, and `tests/test_locales.py::TestMedicationNameParity`
+  fails if a name is not a medication that locale actually prescribes — which is what makes
+  it checkable rather than a promise. If a locale spells a drug two ways, pick the correct
+  one and accept that the other occurrence goes undosed; do not add a wrong name to widen
+  coverage.
+- **Assessment instruments: the score, never the items.** See below — this one is a legal
+  boundary, not a style preference.
+- **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
+  by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
+  never copied into six catalogues. Constrain only what is unambiguous, and record the
+  reasoning for a condition you deliberately did NOT constrain (breast cancer is not
+  female-only; congenital heart disease and cystic fibrosis are no longer paediatric).
+
+## Assessment Instruments: scores only, never item text
+
+**This is a copyright boundary and it is not negotiable.** `faker_healthcare/assessments.py`
+may contain an instrument's name, its maximum score, its severity bands and its published
+cut-off, and nothing else. It must never contain the items, the questions, the response
+options, the answer wording or the scoring instructions — and neither may a locale package,
+a docstring, a test fixture, the README, or an example.
+
+Most of these instruments are under active copyright; several are licensed commercially and
+their translations are separately licensed works. Reproducing the items would redistribute
+someone else's literary property under a licence its owner never granted, in six languages,
+to everyone who installs the package. A **score** is different in kind: "PHQ-9 = 14" is a
+number about a fictional patient, and it is also exactly what a medical record, a research
+extract or a de-identification test rig actually holds.
+
+- Ship only the six agreed instruments: PHQ-9, GAD-7, MMSE, MADRS, AUDIT-C, CAGE. A seventh
+  is a maintainer decision.
+- The MMSE is **inverted** — a low score is the abnormal one. Anything that places a score
+  by severity must read `higher_is_worse` rather than assuming.
+- Classify conditions by **ICD-10 only**. Do not reference any other diagnostic manual in
+  data, API names, comments or docs.
+- `tests/test_records.py::TestAssessmentBoundary` enforces the shape from both ends: the
+  definition may carry only the five allowed keys and the result only the four. A PR that
+  adds item text fails there, and would be closed anyway.
 
 ## Locale Mechanism
 
@@ -241,7 +313,31 @@ measurement ID (`lab_result(analyte=...)`, `vital_sign_measurement(name=...)`).
   **falsiness does not**: `0` is a correct answer from `alcohol_units_per_week()`, and a
   truthiness check would have failed on it about one run in five.
 
-## Generated Identifiers (the screened-set rule)
+## Generated Identifiers (the reserved-range rule)
+
+Applies to every **numbered identifier a real authority issues to a real person** — an NHS
+Number today, and whatever comes next.
+
+- **Default to the range the issuing authority reserves for testing.** `nhs_number()`
+  returns a number in the 999 range NHS England never allocates, so a generated identifier
+  cannot be a living patient's. The whole hazard is that a *valid* identifier is by
+  construction one that could belong to someone real, and a synthetic record carrying one
+  can be matched against, or mistaken for, a real record.
+- **Make the unreserved mode explicit at the call site and say why**:
+  `nhs_number(official_test_range=False)`, documented as capable of colliding with a real
+  person's number. Never make it the default, and never make it the only mode.
+- **Implement the check digit from the published specification and cite it** in the module
+  docstring, with the URL. Get the invalid-remainder case right — an NHS stem whose
+  Modulus 11 check digit works out to 10 is never issued and must be redrawn, not
+  truncated into something a validator would reject.
+- **Test against published examples** the code was not written around, and test that a
+  single-digit change stops validating. That is what proves the checksum is the real one
+  rather than an arithmetic look-alike.
+- If an authority publishes **no** reserved range, say so in the docstring and in the PR,
+  and give the caller a way to supply a prefix. Do not quietly generate live-space
+  identifiers by default.
+
+## Generated Names (the screened-set rule)
 
 Applies to every **user-visible identifier this package invents** — a brand name, a product
 name, a facility or plan name, anything a consumer could mistake for a real named thing.

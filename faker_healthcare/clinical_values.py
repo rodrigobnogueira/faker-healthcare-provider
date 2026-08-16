@@ -67,7 +67,7 @@ Known simplifications (stated rather than hidden)
 - **Direction, not severity** — see SEVERITY_TIERS below.
 """
 
-from .types import Direction, Flag, LabDefinition, VitalDefinition
+from .types import DemographicConstraint, Direction, Flag, LabDefinition, Sex, VitalDefinition
 
 
 __all__ = [
@@ -84,18 +84,24 @@ __all__ = [
     "BODY_PROFILES",
     "CONDITION_LAB_EFFECTS",
     "CONDITION_VITAL_EFFECTS",
+    "DEMOGRAPHIC_CONSTRAINTS",
     "FLAG_LABEL_KEYS",
     "HEIGHT_LOSS_CM_PER_YEAR_AFTER",
     "LAB_DEFINITIONS",
     "MIN_PULSE_PRESSURE_MMHG",
+    "PATIENT_AGE_RANGE",
     "PULSE_PRESSURE_RANGE_MMHG",
     "SEVERITY_RESOLUTION",
     "SEVERITY_TIERS",
+    "SEXES",
     "VITAL_DEFINITIONS",
+    "age_range_for",
     "alcohol_category_key",
     "flag_for",
     "from_steps",
+    "is_paediatric_only",
     "measurement_band",
+    "satisfies_demographics",
     "to_steps",
 ]
 
@@ -282,6 +288,11 @@ BODY_PROFILES: dict[str, dict[str, float]] = {
     "female": {"height_mean_cm": 162.0, "height_sd_cm": 6.5, "height_min_cm": 140.0, "height_max_cm": 190.0},
 }
 
+# The same two keys as BODY_PROFILES, as an ordered tuple: `patient()` draws a sex from
+# it, and a tuple (not a dict view) is what keeps that draw stable and typed. A test
+# asserts the two stay the same set.
+SEXES: tuple[Sex, ...] = ("male", "female")
+
 BMI_MEAN = 26.5
 BMI_SD = 4.5
 BMI_LIMITS = (15.0, 55.0)
@@ -295,6 +306,67 @@ BMI_DRIFT_PER_YEAR = 0.05
 BMI_DRIFT_AGE_RANGE = (18, 60)
 
 ADULT_AGE_RANGE = (18, 110)
+
+
+# --------------------------------------------------------------------------------------
+# Who a condition can occur in, keyed by ICD-10 code
+# --------------------------------------------------------------------------------------
+#
+# Without this, generating a patient beside a diagnosis produces male preeclampsia and
+# eighty-year-old bronchiolitis — the demographic version of a diagnosis whose ICD-10
+# code belongs to another condition, and something every consumer of this package has to
+# work around by hand.
+#
+# Keyed by ICD-10 code and living HERE, once, for the same reason as the effect tables
+# above and stated once more because it is the rule that matters most in this file: sex
+# and age are not translatable. "Female" is a fact about the condition, not a word about
+# it, so it cannot live in six catalogues where five copies could fall behind the sixth.
+#
+# Each entry states only what it knows (`DemographicConstraint` has no required keys):
+#   * `sex` — the condition occurs only in that anthropometric class;
+#   * `min_age` / `max_age` — inclusive bounds on a plausible patient's age, not on the
+#     age at diagnosis and not a hard clinical limit.
+#
+# The bar is the same as everywhere else: constrain only what is unambiguous. A condition
+# with no entry can occur in anyone, which is an honest default.
+#
+# Deliberately absent, as worked examples of the bar:
+#   * Q24.9 (congenital heart disease) is NOT paediatric-only. Most of it is diagnosed in
+#     infancy, but adults with congenital heart disease now outnumber children — a whole
+#     specialty (ACHD) exists for them — so a ceiling here would generate a false fact;
+#   * C50.919 (breast cancer) is NOT female-only. Male breast cancer is about 1% of
+#     cases; pinning `sex` would make the package unable to generate a real patient
+#     group;
+#   * E84.9 (cystic fibrosis) is likewise no longer paediatric: median predicted survival
+#     is now in the fifth decade, and adults are the majority of the CF population.
+DEMOGRAPHIC_CONSTRAINTS: dict[str, DemographicConstraint] = {
+    # Female-only. The four with an upper bound are bounded by reproductive age rather
+    # than by the condition: an endometriosis diagnosis can persist past the menopause,
+    # but a *new* patient generated for it is of reproductive age.
+    "O14.90": {"sex": "female", "min_age": 15, "max_age": 50},  # Preeclampsia (pregnancy)
+    "O24.419": {"sex": "female", "min_age": 15, "max_age": 50},  # Gestational diabetes (pregnancy)
+    "E28.2": {"sex": "female", "min_age": 15, "max_age": 50},  # Polycystic ovary syndrome
+    "N80.9": {"sex": "female", "min_age": 15, "max_age": 55},  # Endometriosis
+    "D25.9": {"sex": "female", "min_age": 20, "max_age": 55},  # Uterine fibroids
+    "C56.9": {"sex": "female"},  # Ovarian cancer (germ-cell tumours occur in teenagers)
+    "C54.1": {"sex": "female", "min_age": 40},  # Endometrial cancer (rare before 40)
+    # Male-only.
+    "C61": {"sex": "male", "min_age": 40},  # Prostate cancer
+    "N40.0": {"sex": "male", "min_age": 45},  # Benign prostatic hyperplasia
+    "N52.9": {"sex": "male", "min_age": 18},  # Erectile dysfunction
+    # Paediatric-only. Both are conditions of early childhood, and both are why
+    # `patient_record()` refuses to build an adult record around them.
+    "J05.0": {"max_age": 5},  # Croup (typically 6 months to 3 years)
+    "J21.9": {"max_age": 2},  # Bronchiolitis (under 2 by definition)
+    # An age floor rather than a paediatric ceiling: early-onset Alzheimer's disease is
+    # defined by onset before 65 and is vanishingly rare below the mid-forties.
+    "G30.9": {"min_age": 45},  # Alzheimer's disease
+}
+
+# The ages `patient()` draws between when a condition constrains neither end. No age
+# structure is modelled — a real clinic population is far from uniform — because any
+# curve would be a claim about a population this package does not have.
+PATIENT_AGE_RANGE = (0, 100)
 
 
 # --------------------------------------------------------------------------------------
@@ -421,6 +493,34 @@ def flag_for(value_steps: int, low_steps: int, high_steps: int) -> Flag:
     if value_steps > high_steps:
         return "high"
     return "normal"
+
+
+def age_range_for(constraint: DemographicConstraint, default: tuple[int, int] = PATIENT_AGE_RANGE) -> tuple[int, int]:
+    """Return the inclusive age range a constraint allows, within `default`.
+
+    Raises:
+        ValueError: if the constraint and the default do not overlap at all — which is
+            how `patient_record()` learns that a paediatric-only condition cannot be
+            given an adult age, instead of silently returning an impossible one.
+    """
+    minimum = max(default[0], constraint.get("min_age", default[0]))
+    maximum = min(default[1], constraint.get("max_age", default[1]))
+    if minimum > maximum:
+        raise ValueError(f"No age between {default[0]} and {default[1]} satisfies this condition's constraint {dict(constraint)}")
+    return minimum, maximum
+
+
+def is_paediatric_only(code: str, adult_age: int = ADULT_AGE_RANGE[0]) -> bool:
+    """Whether a condition's constraint excludes every adult age."""
+    return DEMOGRAPHIC_CONSTRAINTS.get(code, {}).get("max_age", adult_age) < adult_age
+
+
+def satisfies_demographics(code: str, sex: Sex, age: int) -> bool:
+    """Whether a patient of this sex and age could have the condition with this code."""
+    constraint = DEMOGRAPHIC_CONSTRAINTS.get(code, {})
+    if "sex" in constraint and constraint["sex"] != sex:
+        return False
+    return constraint.get("min_age", age) <= age <= constraint.get("max_age", age)
 
 
 def alcohol_category_key(units: int) -> str:
