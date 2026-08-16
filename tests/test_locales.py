@@ -1,6 +1,7 @@
 import importlib
 import re
 from collections import Counter, defaultdict
+from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -8,6 +9,13 @@ from conftest import load_brand_name_generator
 from faker import Faker
 
 from faker_healthcare import HealthcareProvider
+from faker_healthcare.clinical_values import (
+    ALCOHOL_CATEGORY_THRESHOLDS,
+    ALCOHOL_HIGHEST_CATEGORY,
+    FLAG_LABEL_KEYS,
+    LAB_DEFINITIONS,
+    VITAL_DEFINITIONS,
+)
 
 
 SUPPORTED_LOCALES = ["en_US", "pt_BR", "es_ES", "zh_CN", "fr_FR", "de_DE"]
@@ -63,6 +71,21 @@ def _load_constants(locale: str) -> ModuleType:
     if locale == "en_US":
         return importlib.import_module("faker_healthcare.constants")
     return importlib.import_module(f"faker_healthcare.{locale}.constants")
+
+
+def _load_clinical_labels(locale: str) -> dict[str, str]:
+    """Load the clinical display labels for a given locale."""
+    if locale == "en_US":
+        module = importlib.import_module("faker_healthcare.clinical_labels")
+    else:
+        module = importlib.import_module(f"faker_healthcare.{locale}.clinical_labels")
+    labels: dict[str, str] = module.CLINICAL_LABELS
+    return labels
+
+
+def _disease_named_by_code(locale: str, code: str) -> str:
+    """Return this locale's own name for the condition carrying an ICD-10 code."""
+    return next(name for name, data in _load_correlations(locale).items() if data["icd10"] == code)
 
 
 def _icd10_counter(locale: str) -> Counter:
@@ -252,9 +275,69 @@ class TestLocaleProviders:
             lambda: fake.disease_symptoms(unknown),
             lambda: fake.medications(unknown),
             lambda: fake.patient_scenario(disease=unknown),
+            lambda: fake.blood_pressure(disease=unknown),
+            lambda: fake.vital_sign_measurement(disease=unknown),
+            lambda: fake.vital_sign_measurements(disease=unknown),
+            lambda: fake.lab_result(disease=unknown),
+            lambda: fake.lab_panel(disease=unknown),
         ):
             with pytest.raises(ValueError, match=unknown):
                 call()
+
+    def test_blood_pressure_invariant_holds_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        fake.seed_instance(2026)
+        for _ in range(500):
+            pressure = fake.blood_pressure()
+            assert pressure["systolic"] > pressure["diastolic"], (locale, pressure)
+
+    def test_measurements_are_numbers_with_localized_names(self, fake_locale: tuple[Faker, str]) -> None:
+        """vital_sign() still returns a NAME; vital_sign_measurement() returns a number."""
+        fake, locale = fake_locale
+        labels = _load_clinical_labels(locale)
+        assert isinstance(fake.vital_sign(), str)
+        measurement = fake.vital_sign_measurement(name="heart_rate")
+        assert measurement["name"] == labels["heart_rate"], locale
+        assert isinstance(measurement["value"], (int, float)), locale
+
+    def test_lab_result_flag_agrees_with_the_value_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        """The flag word is translated; the comparison behind it is not."""
+        fake, locale = fake_locale
+        labels = _load_clinical_labels(locale)
+        flag_for_label = {labels[key]: flag for flag, key in FLAG_LABEL_KEYS.items()}
+        fake.seed_instance(31)
+        diabetes = _disease_named_by_code(locale, "E11.9")
+        for disease in (None, diabetes):
+            for _ in range(200):
+                result = fake.lab_result(disease=disease)
+                expected = "low" if result["value"] < result["reference_low"] else "high" if result["value"] > result["reference_high"] else "normal"
+                assert flag_for_label[result["flag"]] == expected, (locale, result)
+
+    def test_correlation_reaches_every_locale_through_the_icd10_code(self, fake_locale: tuple[Faker, str]) -> None:
+        """One numeric table, six languages: the diabetic HbA1c is high in all of them."""
+        fake, locale = fake_locale
+        labels = _load_clinical_labels(locale)
+        fake.seed_instance(32)
+        diabetes = _disease_named_by_code(locale, "E11.9")
+        panel = fake.lab_panel(disease=diabetes)
+        hba1c = next(result for result in panel if result["analyte"] == labels["hba1c"])
+        assert hba1c["value"] > hba1c["reference_high"], (locale, hba1c)
+        assert hba1c["flag"] == labels["flag_high"], (locale, hba1c)
+        assert hba1c["unit"] == "mmol/mol", locale
+
+    def test_body_measurements_are_self_consistent_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        fake.seed_instance(33)
+        for _ in range(200):
+            body = fake.body_measurements()
+            assert body["bmi"] == round(body["weight_kg"] / (body["height_cm"] / 100) ** 2, 1), (locale, body)
+
+    def test_unknown_measurement_ids_raise_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        with pytest.raises(ValueError, match="Unknown analyte"):
+            fake.lab_result(analyte="not_an_analyte")
+        with pytest.raises(ValueError, match="Unknown vital sign"):
+            fake.vital_sign_measurement(name="not_a_vital_sign")
 
 
 class TestLocaleSpecificData:
@@ -374,6 +457,82 @@ class TestLocaleParity:
             assert data["symptoms"], f"{locale}: '{disease}' has no symptoms"
             assert data["medications"], f"{locale}: '{disease}' has no medications"
             assert data["medical_specialty"], f"{locale}: '{disease}' has no specialty"
+
+
+class TestClinicalLabelParity:
+    """Labels are per-locale; the numbers behind them deliberately are NOT.
+
+    The measurement API is split down the middle. Units, reference intervals, bounds and
+    the condition -> analyte correlations live once in
+    `faker_healthcare/clinical_values.py`, because a millimole is a millimole in every
+    language; only the words live in `faker_healthcare/<locale>/clinical_labels.py`.
+
+    That makes the numeric tables a DELIBERATE, EXPLICIT EXEMPTION from the six-locale
+    parity rule that governs `disease_correlations.py` and the constant tuples: they are
+    not duplicated per locale, and `test_no_locale_ships_its_own_numeric_tables` fails
+    if a future change starts duplicating them. The labels get the full parity
+    treatment instead, since they are the half that can legitimately differ and
+    therefore the half that can legitimately fall behind.
+    """
+
+    def test_base_label_keys_cover_the_numeric_tables_exactly(self) -> None:
+        """Adding an analyte or a vital sign forces a label for it — in all six locales.
+
+        Without this the tables and the labels drift: a new analyte would generate a
+        number no locale could name, and `_label()` would raise at call time instead of
+        at test time.
+        """
+        expected = {*VITAL_DEFINITIONS, *LAB_DEFINITIONS, *FLAG_LABEL_KEYS.values(), *(key for _, key in ALCOHOL_CATEGORY_THRESHOLDS), ALCOHOL_HIGHEST_CATEGORY}
+        assert set(_load_clinical_labels("en_US")) == expected
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_every_locale_defines_every_label_key(self, locale: str) -> None:
+        base = set(_load_clinical_labels("en_US"))
+        actual = set(_load_clinical_labels(locale))
+        assert not base - actual, f"{locale} is missing labels: {sorted(base - actual)}"
+        assert not actual - base, f"{locale} defines labels no other locale has: {sorted(actual - base)}"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_labels_are_non_empty_and_distinct(self, locale: str) -> None:
+        """Two keys sharing one label is how a copy-paste translation goes unnoticed."""
+        labels = _load_clinical_labels(locale)
+        assert all(value.strip() for value in labels.values()), locale
+        duplicates = {value for value in labels.values() if list(labels.values()).count(value) > 1}
+        assert not duplicates, f"{locale} uses the same label for more than one key: {sorted(duplicates)}"
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_labels_are_actually_translated(self, locale: str) -> None:
+        """A handful of terms are the same word in two languages; a whole file is not."""
+        base = _load_clinical_labels("en_US")
+        labels = _load_clinical_labels(locale)
+        untranslated = [key for key, value in labels.items() if value == base[key]]
+        assert len(untranslated) <= len(base) // 4, f"{locale} looks copied from English: {sorted(untranslated)}"
+
+    def test_zh_cn_labels_contain_no_japanese_kana(self) -> None:
+        offenders = [value for value in _load_clinical_labels("zh_CN").values() if JAPANESE_KANA_RE.search(value)]
+        assert not offenders, f"zh_CN clinical labels contain Japanese kana: {offenders}"
+
+    @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
+    def test_no_locale_ships_its_own_numeric_tables(self, locale: str) -> None:
+        """The exemption, enforced: reference ranges are never duplicated per locale.
+
+        Six copies of one reference interval is six chances to disagree about a value
+        that cannot legitimately differ, and the first correction would leave five of
+        them stale.
+        """
+        package = Path(importlib.import_module(f"faker_healthcare.{locale}").__file__).parent
+        assert not (package / "clinical_values.py").exists(), f"{locale} ships its own copy of the numeric tables"
+
+        provider = _get_provider_for_locale(locale)
+        for attribute in ("vital_definitions", "lab_definitions"):
+            assert attribute not in provider.__dict__, f"{locale} provider redeclares '{attribute}'"
+            assert getattr(provider, attribute) is getattr(HealthcareProvider, attribute), f"{locale} provider does not share the base '{attribute}'"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_every_locale_provider_declares_its_own_labels(self, locale: str) -> None:
+        provider = _get_provider_for_locale(locale)
+        assert "clinical_labels" in provider.__dict__, f"{locale} provider does not declare clinical_labels"
+        assert provider.clinical_labels == _load_clinical_labels(locale)
 
 
 class TestZhBrandCatalogue:

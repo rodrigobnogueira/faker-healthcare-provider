@@ -120,6 +120,55 @@ class TestHealthcareProvider:
             assert ")" in result
 
 
+class TestMeasurementShapes:
+    """The measurement API returns TypedDicts; this pins the keys and their types.
+
+    What the numbers mean, and that they agree with each other and with the diagnosis,
+    is `tests/test_clinical_values.py`. This is the shape contract a consumer unpacks.
+    """
+
+    def test_blood_pressure(self, faker: Faker) -> None:
+        pressure = faker.blood_pressure()
+        assert set(pressure) == {"systolic", "diastolic", "unit"}
+        assert isinstance(pressure["systolic"], int)
+        assert isinstance(pressure["diastolic"], int)
+        assert isinstance(pressure["unit"], str)
+
+    def test_vital_sign_measurement(self, faker: Faker) -> None:
+        measurement = faker.vital_sign_measurement()
+        assert set(measurement) == {"name", "value", "unit"}
+        assert isinstance(measurement["name"], str)
+        assert isinstance(measurement["value"], (int, float))
+        assert isinstance(measurement["unit"], str)
+
+    def test_vital_sign_measurements(self, faker: Faker) -> None:
+        measurements = faker.vital_sign_measurements()
+        assert len(measurements) == 6
+        assert all(set(measurement) == {"name", "value", "unit"} for measurement in measurements)
+
+    def test_body_measurements(self, faker: Faker) -> None:
+        body = faker.body_measurements()
+        assert set(body) == {"height_cm", "weight_kg", "bmi"}
+        assert all(isinstance(value, float) for value in body.values())
+
+    def test_alcohol(self, faker: Faker) -> None:
+        units = faker.alcohol_units_per_week()
+        assert isinstance(units, int)
+        assert isinstance(faker.alcohol_intake_category(units=units), str)
+
+    def test_lab_result(self, faker: Faker) -> None:
+        result = faker.lab_result()
+        assert set(result) == {"analyte", "value", "unit", "reference_low", "reference_high", "flag"}
+        assert isinstance(result["analyte"], str)
+        assert isinstance(result["value"], (int, float))
+        assert isinstance(result["flag"], str)
+
+    def test_lab_panel(self, faker: Faker) -> None:
+        panel = faker.lab_panel()
+        assert panel
+        assert all(set(result) == {"analyte", "value", "unit", "reference_low", "reference_high", "flag"} for result in panel)
+
+
 # Real brands kept ONLY here for collision QA — never shipped in the package.
 _FAMOUS_REAL_BRANDS = {
     "lipitor",

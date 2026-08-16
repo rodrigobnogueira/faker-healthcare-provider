@@ -124,6 +124,39 @@ def showcase_correlated_data() -> None:
         print(f"  • {med}")
 
 
+def showcase_measurements() -> None:
+    """Demonstrate measurements: numbers rather than the names of measurements."""
+    print_header("Measurements & Lab Results")
+
+    print_subheader("Vital Signs (measured)")
+    for measurement in fake.vital_sign_measurements():
+        print(f"  • {measurement['name']:<28} {measurement['value']} {measurement['unit']}")
+
+    print_subheader("Blood Pressure (systolic is always above diastolic)")
+    for _ in range(3):
+        pressure = fake.blood_pressure()
+        print(f"  • {pressure['systolic']}/{pressure['diastolic']} {pressure['unit']}")
+
+    print_subheader("Body Measurements (BMI computed from height and weight)")
+    for sex in ("male", "female"):
+        body = fake.body_measurements(sex=sex)
+        print(f"  • {sex:<8} {body['height_cm']} cm, {body['weight_kg']} kg, BMI {body['bmi']}")
+
+    print_subheader("Alcohol Intake")
+    for _ in range(4):
+        units = fake.alcohol_units_per_week()
+        print(f"  • {units:>3} UK units/week — {fake.alcohol_intake_category(units=units)}")
+
+    print_subheader("Lab Panel (uncorrelated)")
+    for result in fake.lab_panel(size=4):
+        print(f"  • {result['analyte']:<34} {result['value']} {result['unit']:<14} [{result['reference_low']}-{result['reference_high']}] {result['flag']}")
+
+    for disease in ("Type 2 Diabetes", "Chronic Kidney Disease", "Hypothyroidism"):
+        print_subheader(f"Lab Panel correlated with {disease}")
+        for result in fake.lab_panel(disease=disease):
+            print(f"  • {result['analyte']:<34} {result['value']} {result['unit']:<14} [{result['reference_low']}-{result['reference_high']}] {result['flag']}")
+
+
 def showcase_patient_scenarios() -> None:
     """Demonstrate complete patient scenario generation."""
     print_header("Complete Patient Scenarios")
@@ -207,6 +240,7 @@ def main() -> None:
     showcase_medications()
     showcase_symptoms_and_procedures()
     showcase_correlated_data()
+    showcase_measurements()
     showcase_patient_scenarios()
     showcase_multi_language()
 

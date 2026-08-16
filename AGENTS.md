@@ -17,13 +17,22 @@ changes small, data-focused, and easy to verify.
   **generated**; the screened brand-name catalogues. Never edit them by hand.
 - `scripts/generate_brand_names.py` — the screens and the review record that produce those
   two modules. This is the file you edit when a brand name has to change.
-- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` TypedDicts (the data shapes).
+- `faker_healthcare/clinical_values.py` — the **locale-neutral** numeric tables: vital-sign
+  and lab-analyte definitions (units, reference intervals, bounds, precision) and the
+  ICD-10-keyed `CONDITION_LAB_EFFECTS` / `CONDITION_VITAL_EFFECTS` correlations. No
+  translated text lives here, and it is never duplicated per locale.
+- `faker_healthcare/clinical_labels.py` and `faker_healthcare/<locale>/clinical_labels.py` —
+  the display words for those IDs (analyte and vital names, the low/normal/high flags, the
+  alcohol categories). Every locale defines the same key set.
+- `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` / measurement TypedDicts
+  (the data shapes).
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
-  `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`, and
-  `disease_correlations.py`.
+  `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`,
+  `clinical_labels.py`, and `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
-  `test_performance.py`, `test_readme.py`, and `conftest.py` (which loads the generator
-  script so the tests re-run its screens instead of restating them).
+  `test_clinical_values.py`, `test_performance.py`, `test_readme.py`, and `conftest.py`
+  (which loads the generator script so the tests re-run its screens instead of restating
+  them).
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
   `python` block and calls every method the "Available Methods" table lists. Change a public
   method and the README changes with it, in the same PR.
@@ -94,10 +103,56 @@ When you add or edit a disease:
 visible, wrong-looking record.
 
 **An accessor that takes a `disease=` argument must RAISE `ValueError` for a disease it does
-not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications` and
-`patient_scenario` all do. Never fall back to an uncorrelated random draw: the caller asked
-about one condition and would silently receive another condition's data, which is precisely
-the failure this library exists to prevent.
+not know** — `icd10_code`, `symptom`, `medication`, `disease_symptoms`, `medications`,
+`patient_scenario`, `blood_pressure`, `vital_sign_measurement`, `vital_sign_measurements`,
+`lab_result` and `lab_panel` all do. Never fall back to an uncorrelated random draw: the
+caller asked about one condition and would silently receive another condition's data, which
+is precisely the failure this library exists to prevent. The same applies to an unknown
+measurement ID (`lab_result(analyte=...)`, `vital_sign_measurement(name=...)`).
+
+## Measurements (the locale-neutral half)
+
+`vital_sign()` returns the NAME of a vital sign; the measurement API returns numbers —
+`blood_pressure()`, `vital_sign_measurement()`, `vital_sign_measurements()`,
+`body_measurements()`, `alcohol_units_per_week()`, `alcohol_intake_category()`,
+`lab_result()`, `lab_panel()`. All of it is additive: the string API is unchanged.
+
+- **Reference ranges, units and numeric bounds are locale-invariant, so they live in ONE
+  module.** `faker_healthcare/clinical_values.py` keys them by stable IDs (`heart_rate`,
+  `hba1c`); each locale translates **labels only**, in its own `clinical_labels.py`. Do not
+  copy a range into a locale package: six copies of one number are six chances to disagree
+  about a value that cannot legitimately differ, and the first correction leaves five stale.
+  `tests/test_locales.py::TestClinicalLabelParity` enforces both halves — every locale must
+  define every label key, no locale may ship a `clinical_values.py` or redeclare
+  `vital_definitions` / `lab_definitions`, and the base label key set must equal the union
+  of the numeric tables (so a new analyte cannot ship unnamed).
+- **Units are SI** (mmol/L, µmol/L, g/L, IFCC mmol/mol), stated in the module docstring with
+  the conversions to US conventional units. Do not mix systems: an analyte in the wrong one
+  is indistinguishable from a wrong number.
+- **`CONDITION_LAB_EFFECTS` / `CONDITION_VITAL_EFFECTS` are keyed by ICD-10 code**, not by
+  disease name, because the code is the one field identical in all six locales — that is
+  what makes one table correlate in French and Chinese. A code that is not in the catalogue
+  correlates with nothing; a test iterates every key to prove it exists.
+- **Only add an effect you are confident about.** The bar is the same as for a condition's
+  symptoms: textbook and unambiguous for the *unqualified* condition, not "can occur in
+  severe cases". An empty entry is better than a wrong one — a condition with no entry
+  simply produces in-range values, which is an honest "nothing specific here". The module
+  keeps worked examples of the bar (haemophilia prolongs the APTT, not the INR).
+- **A direction must have somewhere to go.** `measurement_band()` raises rather than
+  returning an in-range value for an impossible direction (nothing can push oxygen
+  saturation above 100%), and a test asserts no shipped effect asks for one.
+- **The generated numbers must agree with each other.** These are invariants, asserted over
+  thousands of seeded draws in `tests/test_clinical_values.py`, not spot-checked:
+  `systolic > diastolic` by at least a plausible pulse pressure (they are one measurement:
+  diastolic is drawn and systolic derived from it); `flag` is derived from the same
+  comparison the caller can make against `reference_low`/`reference_high`; `bmi` is computed
+  from the `height_cm` and `weight_kg` returned beside it.
+- **Model direction, not severity.** An abnormal value is placed by severity tier (mild most
+  of the time, marked rarely) so a diabetic HbA1c reads like a diabetic HbA1c, but nothing
+  here knows how advanced a condition is, and no method should claim to.
+- **Adult data only.** `body_measurements()` refuses a paediatric age rather than
+  extrapolating an adult curve; real growth references (WHO/CDC charts) are a data import,
+  with the licence review that implies.
 
 ## Locale Mechanism
 
@@ -118,6 +173,10 @@ the failure this library exists to prevent.
     all six locales. `INSURANCE_PLANS` is the one deliberate exemption — plan types are
     country-specific. A **new** constant must be added to one of the classification lists in
     `test_locales.py` or the suite fails;
+  - every locale's `CLINICAL_LABELS` has the **same key set** as the base's, none of them
+    empty, none of them duplicated within a locale, and not simply copied from English. The
+    numeric tables behind those labels are the other deliberate exemption: they are
+    locale-neutral by design and a test fails if a locale starts duplicating them;
   - `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug name
     (リオチロニン) reached the Simplified Chinese catalog.
 
@@ -178,6 +237,9 @@ the failure this library exists to prevent.
   `disease_medical_specialty()` — fails CI. The same test asserts every non-English example
   imports that locale's own `Provider`; adding the base `HealthcareProvider` to a
   `Faker('es_ES')` loads the **English** catalog, which is what the README used to teach.
+  It checks each documented method returned something — `None` or an empty container fails,
+  **falsiness does not**: `0` is a correct answer from `alcohol_units_per_week()`, and a
+  truthiness check would have failed on it about one run in five.
 
 ## Generated Identifiers (the screened-set rule)
 

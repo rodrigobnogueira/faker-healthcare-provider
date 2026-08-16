@@ -52,6 +52,11 @@ class TestOptimization:
             "insurance_plans",
             "vital_signs",
             "non_drug_interventions",
+            # Labels for the measurement API. The numeric tables behind it
+            # (vital_definitions, lab_definitions) are deliberately NOT in this list:
+            # they are locale-neutral and must stay shared with the base provider, which
+            # tests/test_locales.py::TestClinicalLabelParity asserts from the other side.
+            "clinical_labels",
         ]
 
         all_providers = {**{"en (base)": HealthcareProvider}, **locale_providers}
