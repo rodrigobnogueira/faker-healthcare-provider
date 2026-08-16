@@ -118,7 +118,32 @@ releases missing the `G40.909` condition the other five locales had and carrying
   dose ladders, with every value checked to be a medication that locale's catalogue
   actually prescribes;
 - that `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug
-  name reached the Simplified Chinese catalogue.
+  name reached the Simplified Chinese catalogue;
+- that every zh_CN medication and symptom is the **committed equivalent** of the English
+  term in the same slot (see below).
+
+**A localized drug name must name the same substance as the base entry.** This is the
+defect the count-based checks above cannot see, and the worst one this data can carry: a
+real drug, plausible for the condition, wrong, in one locale only. zh_CN shipped `地西泮`
+(diazepam) where the base says Disulfiram, `可乐定` (clonidine) where it says Clonazepam,
+`铝碳酸镁` (hydrotalcite) where it says Sucralfate, and `布林佐胺` (brinzolamide) where it
+says Brimonidine — with every count matching, because a substitution and an index shift
+both preserve counts.
+
+So the correspondence is pinned in `tests/zh_cn_equivalents.py`: the exact Chinese string
+for every English medication and symptom. `TestZhTranslationEquivalence` walks the two
+catalogues together — by ICD-10 code, then by position within it — and fails, naming the
+slot, on any disagreement. Two consequences for a contributor:
+
+- **changing or adding a zh_CN medication or symptom means editing that table in the same
+  commit**, which is the point: the change becomes deliberate and reviewable instead of a
+  string edit nobody can check;
+- **one Chinese name may not stand for two substances.** `可乐定` was serving as both
+  Clonidine and Clonazepam, and that ambiguity is exactly what let the wrong one ship.
+
+The other five locales have no such table yet; adding one is a genuinely valuable
+contribution, but it has to be the *record of a term-by-term review*, not a transcription
+of what the catalogue currently says.
 
 An English-only addition, or one with four symptoms in one locale and five in another,
 will fail CI. If you cannot produce all six translations, open an issue describing the
@@ -452,6 +477,12 @@ Rules for any code that generates a value:
   and its entire multi-locale path used `Faker('es_ES')` with the base
   `HealthcareProvider`, which loads the **English** data. Use
   `from faker_healthcare.es_ES import Provider` in any locale example you write.
+- **New condition, or a corrected zh_CN medication or symptom:** add or update its entry
+  in `tests/zh_cn_equivalents.py` in the same commit — the table is keyed by the English
+  term and holds the exact Chinese string, and `TestZhTranslationEquivalence` fails on a
+  base term with no entry, on a stale entry the catalogue no longer uses, and on a slot
+  whose Chinese string is not the one recorded. Say in the PR what the Chinese name is,
+  the same way you would source any other medical fact.
 - **New locale data file or provider:** keep the lazy `_load_disease_correlations`
   pattern and check that `tests/test_performance.py` still passes — it runs the memory
   isolation checks in subprocesses.

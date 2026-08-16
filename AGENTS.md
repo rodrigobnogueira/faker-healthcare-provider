@@ -44,9 +44,11 @@ changes small, data-focused, and easy to verify.
   `clinical_labels.py`, and `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
   `test_clinical_values.py`, `test_records.py`, `test_performance.py`, `test_readme.py`,
-  and `conftest.py`
+  `conftest.py`
   (which loads the generator script so the tests re-run its screens instead of restating
-  them).
+  them), and `zh_cn_equivalents.py` — the committed English→Simplified Chinese equivalent
+  of every medication and symptom, which `TestZhTranslationEquivalence` holds the zh_CN
+  catalogue to slot by slot.
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
   `python` block and calls every method the "Available Methods" table lists. Change a public
   method and the README changes with it, in the same PR.
@@ -251,6 +253,28 @@ extract or a de-identification test rig actually holds.
     locale-neutral by design and a test fails if a locale starts duplicating them;
   - `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug name
     (リオチロニン) reached the Simplified Chinese catalog.
+
+- **A localized medication must name the SAME SUBSTANCE as the base entry, and a test
+  says so.** This is the most dangerous defect this data can carry, because it is
+  invisible: a real drug, plausible for the condition, in one locale only. zh_CN shipped
+  four — `地西泮` (diazepam) for Disulfiram, `可乐定` (clonidine) for Clonazepam,
+  `铝碳酸镁` (hydrotalcite) for Sucralfate, `布林佐胺` (brinzolamide) for Brimonidine —
+  and every parity count was correct throughout, because a substitution and an index shift
+  both preserve the counts.
+  - `tests/zh_cn_equivalents.py` pins the correspondence: the exact Chinese string for
+    every English medication and symptom in the base catalogue.
+    `test_locales.py::TestZhTranslationEquivalence` walks the two catalogues together, by
+    ICD-10 code and by position within it, and fails by name on a slot that disagrees.
+    Correcting or adding a translation means editing that table in the same commit.
+  - The medication mapping is **one-to-one in both directions**: one Chinese name may not
+    stand for two substances (that is exactly what `可乐定` was doing). Symptoms are
+    exempt from injectivity only because the base catalogue writes the same symptom two
+    ways (`Headache`/`Headaches`, `Frequency`/`Frequent Urination`).
+  - Where a substance has a dose ladder, this table and `MEDICATION_NAMES` must agree; a
+    test asserts it, so the two mappings cannot drift.
+  - The other five locales have no such table yet. Adding one is a locale-review task, not
+    a mechanical one — write the table as the *record* of a term-by-term review, never by
+    transcribing what the catalogue happens to say today.
 
   If you add a condition, add it to **all six** `disease_correlations.py` files (English base
   plus five locales), with the same number of symptoms and medications in each. If you add,
