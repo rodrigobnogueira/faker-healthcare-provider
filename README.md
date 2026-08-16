@@ -152,7 +152,7 @@ fails CI.
 | `medication_order()` | {'medication': 'Metformin', 'dose': 850, 'unit': 'mg', 'route': 'Oral', 'frequency': 'Twice daily', 'status': 'Current'} |
 | `medication_orders()` | 1-4 distinct orders, past / current / future |
 | `assessment_score()` | {'instrument': 'PHQ-9', 'score': 16, 'max_score': 27, 'severity': 'Moderately severe'} |
-| `nhs_number()` | 999 043 7712 *(reserved test range by default; Modulus 11 valid)* |
+| `nhs_number()` | 999 043 7718 *(reserved test range by default; Modulus 11 valid)* |
 | `patient()` | A scenario plus a sex, age and date of birth the condition allows |
 | `patient_record()` | The whole thing in one call: demographics, scenario, vitals, labs, medications |
 
@@ -250,8 +250,8 @@ fake.medication_orders(disease='Asthma', count=2)
 fake.assessment_score(instrument='phq9', disease='Depression')
 # {'instrument': 'PHQ-9', 'score': 16, 'max_score': 27, 'severity': 'Moderately severe'}
 
-fake.nhs_number()                       # '999 043 7712'
-fake.nhs_number(official_test_range=False)  # '628 730 4185' — opt in deliberately
+fake.nhs_number()                       # '999 043 7718'
+fake.nhs_number(official_test_range=False)  # '628 730 4189' — opt in deliberately
 
 patient = fake.patient(disease='Preeclampsia')
 (patient['sex'], patient['age'])        # ('female', 31) — never male, never a child
