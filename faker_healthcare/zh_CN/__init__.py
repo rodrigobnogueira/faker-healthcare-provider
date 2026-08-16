@@ -10,7 +10,7 @@ from .constants import (
     MEDICAL_PROCEDURES,
     NON_DRUG_INTERVENTIONS,
     VITAL_SIGNS,
-    ZH_BRAND_CHARS,
+    ZH_BRAND_NAMES,
 )
 
 
@@ -30,12 +30,18 @@ class Provider(BaseHealthcareProvider):
     vital_signs: ElementsType[str] = VITAL_SIGNS
     non_drug_interventions: ElementsType[str] = NON_DRUG_INTERVENTIONS
 
+    zh_brand_names: ElementsType[str] = ZH_BRAND_NAMES
+
     def brand_drug(self) -> str:
         """Return a fictitious Chinese-style brand name paired with a Latin one.
 
-        The Chinese characters are drawn from a pool of generic pharmaceutical
-        characters and combined into an invented name (never a real trademark);
-        the Latin part reuses the base generator. Any resemblance is coincidental.
+        Both halves come from screened static lists — `zh_brand_names` here and
+        `brand_drug_names` from the base provider — rather than being combined at
+        runtime, which previously put 30,752 unscreened Chinese names in the API.
+
+        The Chinese list carries a weaker guarantee than the Latin one and says so in
+        its own module: it has passed automated screens (a denylist of real trademarks
+        and ordinary words, plus every Chinese term this package ships) but has not been
+        reviewed by a fluent Chinese speaker. Corrections are welcome.
         """
-        chars = "".join(self.random_elements(ZH_BRAND_CHARS, length=self.random_int(2, 3), unique=True))
-        return f"{chars} ({super().brand_drug()})"
+        return f"{self.random_element(self.zh_brand_names)} ({super().brand_drug()})"

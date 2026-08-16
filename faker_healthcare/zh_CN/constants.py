@@ -2,6 +2,21 @@
 静态数据常量用于 Healthcare Provider (zh_CN).
 """
 
+from .brand_names import ZH_BRAND_NAMES
+
+
+__all__ = [
+    "ALLERGIES",
+    "BLOOD_TYPES",
+    "HOSPITAL_DEPARTMENTS",
+    "INSURANCE_PLANS",
+    "MEDICAL_PROCEDURES",
+    "NON_DRUG_INTERVENTIONS",
+    "VITAL_SIGNS",
+    "ZH_BRAND_CHARS",
+    "ZH_BRAND_NAMES",
+]
+
 HOSPITAL_DEPARTMENTS: tuple[str, ...] = (
     "急诊科",
     "重症监护室 (ICU)",
@@ -35,10 +50,13 @@ HOSPITAL_DEPARTMENTS: tuple[str, ...] = (
     "麻醉复苏室 (PACU)",
 )
 
-# Generic pharmaceutical characters for the fictitious zh_CN brand generator
-# (see the brand_drug() override in this package's __init__.py). These are
-# common, non-brand-defining characters; combined into invented 2-3 character
-# names they never form a real trademark. Any resemblance is coincidental.
+# Generic pharmaceutical characters, the input to the zh_CN half of
+# scripts/generate_brand_names.py. brand_drug() draws from the screened ZH_BRAND_NAMES
+# (imported above) and never from these directly: combining them at runtime produced
+# 30,752 two- and three-character names, and among the two-character ones alone the
+# screening pass found real trademarks (诺华 = Novartis, 泰诺 = Tylenol, 泰康 = Taikang)
+# and ordinary words (康复 = "rehabilitation", 安乐 = the first half of "euthanasia").
+# Editing this pool changes nothing until the script is re-run.
 ZH_BRAND_CHARS: tuple[str, ...] = (
     "舒",
     "康",

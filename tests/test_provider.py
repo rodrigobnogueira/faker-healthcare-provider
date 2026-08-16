@@ -1,9 +1,14 @@
 import re
 
 import pytest
+from conftest import load_brand_name_generator
 from faker import Faker
 
 from faker_healthcare import HealthcareProvider
+from faker_healthcare.constants import BRAND_DRUG_NAMES
+
+
+_generator = load_brand_name_generator()
 
 
 @pytest.fixture
@@ -170,14 +175,80 @@ _INN_STEMS = (
 )
 
 
+# Real products a screen of this catalogue has already rejected. Two of them are FDA
+# veterinary products, which is how the first screen missed them: it covered human
+# brands only. Kept as a literal here, separate from the generator's denylist, so that
+# re-adding one is a test failure and not a silent regression.
+_KNOWN_REAL_PRODUCT_COLLISIONS = (
+    "Revalor",
+    "Orbax",
+    "Orbaex",
+    "Lumemox",
+    "Nuvizen",
+    "Sonadex",
+)
+
+
+class TestBrandCatalogue:
+    """The shipped catalogue is the guarantee, so every assertion iterates all of it.
+
+    A sampled check would pass on a catalogue with one bad name in it, which is exactly
+    the failure mode this replaced: the old brand_drug() screened each generated name
+    against INN stems, kept the last attempt anyway when 12 tries all failed, and never
+    screened for real product names at all.
+    """
+
+    def test_catalogue_is_non_empty_sorted_and_deduplicated(self) -> None:
+        assert BRAND_DRUG_NAMES
+        assert list(BRAND_DRUG_NAMES) == sorted(BRAND_DRUG_NAMES)
+        assert len(set(BRAND_DRUG_NAMES)) == len(BRAND_DRUG_NAMES)
+
+    def test_no_shipped_name_fails_any_screen(self) -> None:
+        catalogue = _generator.catalogue_terms(_generator.LOCALES)
+        offenders = {name: _generator.screen_latin(name, catalogue) for name in BRAND_DRUG_NAMES}
+        assert {name: reasons for name, reasons in offenders.items() if reasons} == {}
+
+    def test_no_shipped_name_ends_in_an_inn_stem(self) -> None:
+        offenders = [name for name in BRAND_DRUG_NAMES if name.lower().endswith(_INN_STEMS)]
+        assert offenders == []
+
+    def test_no_shipped_name_is_a_famous_real_brand(self) -> None:
+        offenders = [name for name in BRAND_DRUG_NAMES if name.lower() in _FAMOUS_REAL_BRANDS]
+        assert offenders == []
+
+    @pytest.mark.parametrize("product", _KNOWN_REAL_PRODUCT_COLLISIONS)
+    def test_known_real_product_is_absent(self, product: str) -> None:
+        assert product.lower() not in {name.lower() for name in BRAND_DRUG_NAMES}
+
+    def test_every_shipped_name_matches_the_brand_pattern(self) -> None:
+        offenders = [name for name in BRAND_DRUG_NAMES if not re.fullmatch(r"[A-Z][a-z]{4,13}", name)]
+        assert offenders == []
+
+    def test_every_shipped_name_is_reachable_from_the_morphemes(self) -> None:
+        """The catalogue is a screened subset of the morpheme space, not a free list."""
+        offenders = [name for name in BRAND_DRUG_NAMES if name not in set(_generator.latin_space())]
+        assert offenders == []
+
+    def test_generator_reproduces_the_committed_files(self) -> None:
+        """Re-running the script must produce the committed files byte for byte."""
+        assert _generator.main(["--check"]) == 0
+
+
 class TestBrandGenerator:
-    def test_pattern_uniqueness_and_no_real_brands(self, faker: Faker) -> None:
+    def test_brand_drug_only_returns_catalogue_names(self, faker: Faker) -> None:
         names = [faker.brand_drug() for _ in range(1000)]
-        for name in names:
-            assert re.fullmatch(r"[A-Z][a-z]{4,13}", name), name
-            assert name.lower() not in _FAMOUS_REAL_BRANDS
-            assert not any(name.lower().endswith(stem) for stem in _INN_STEMS), name
-        assert len(set(names)) > 300
+        assert set(names) <= set(BRAND_DRUG_NAMES)
+
+    def test_draws_cover_most_of_the_catalogue(self, faker: Faker) -> None:
+        """A pool this size should be nearly exhausted in 1000 draws.
+
+        The old test asserted 300+ distinct names, which only proved the *space* was
+        big; it says nothing about safety, and a screened catalogue is deliberately
+        smaller than the space. What matters now is that no part of the catalogue is
+        unreachable, so this asserts coverage of the pool instead.
+        """
+        names = {faker.brand_drug() for _ in range(1000)}
+        assert len(names) > 0.9 * len(BRAND_DRUG_NAMES)
 
     def test_reproducible_under_seed(self) -> None:
         first = Faker()

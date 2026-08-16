@@ -2,6 +2,24 @@
 Static data constants for the Healthcare Provider.
 """
 
+from .brand_names import BRAND_DRUG_NAMES
+
+
+__all__ = [
+    "ALLERGIES",
+    "BLOOD_TYPES",
+    "BRAND_DRUG_NAMES",
+    "BRAND_FORBIDDEN_ENDINGS",
+    "BRAND_INFIXES",
+    "BRAND_PREFIXES",
+    "BRAND_SUFFIXES",
+    "HOSPITAL_DEPARTMENTS",
+    "INSURANCE_PLANS",
+    "MEDICAL_PROCEDURES",
+    "NON_DRUG_INTERVENTIONS",
+    "VITAL_SIGNS",
+]
+
 HOSPITAL_DEPARTMENTS: tuple[str, ...] = (
     "Emergency Department",
     "Intensive Care Unit (ICU)",
@@ -35,12 +53,20 @@ HOSPITAL_DEPARTMENTS: tuple[str, ...] = (
     "Post-Anesthesia Care Unit (PACU)",
 )
 
-# Invented morphemes for the fictitious brand-name generator (see brand_drug()).
-# These are NOT real drug names. They deliberately avoid WHO INN stems
-# (e.g. -mab, -nib, -pril, -sartan, -statin, -vir, -prazole, -dipine, -olol,
-# -cillin, -mycin, -gliptin, -floxacin) so a generated brand can never be
-# mistaken for a generic substance name. Any resemblance to a real brand is
-# coincidental. See AGENTS.md.
+# Invented morphemes for the fictitious brand names in BRAND_DRUG_NAMES (imported
+# above from the generated brand_names.py, and what brand_drug() actually draws from).
+#
+# These pools are the *input* to scripts/generate_brand_names.py, not a runtime pool.
+# brand_drug() used to combine them on the fly, which meant 31,500 possible names, and
+# no one can screen 31,500 names against real products: the port of these same pools to
+# faker-js found five names shadowing real products in a ~250-name sample. The script
+# enumerates the pools, screens what comes out, and ships the reviewed result. Editing a
+# morpheme here changes nothing until the script is re-run.
+#
+# The pools deliberately avoid WHO INN stems (e.g. -mab, -nib, -pril, -sartan, -statin,
+# -vir, -prazole, -dipine, -olol, -cillin, -mycin, -gliptin, -floxacin) so a name cannot
+# be mistaken for a generic substance; BRAND_FORBIDDEN_ENDINGS below is the screen that
+# enforces it. See AGENTS.md.
 BRAND_PREFIXES: tuple[str, ...] = (
     "Zol",
     "Vyra",
@@ -150,7 +176,9 @@ BRAND_SUFFIXES: tuple[str, ...] = (
     "gis",
 )
 
-# WHO INN class stems a generated brand must never end with (enforced in brand_drug()).
+# WHO INN class stems a brand name must never end with. Enforced by
+# scripts/generate_brand_names.py when it builds BRAND_DRUG_NAMES, and re-asserted over
+# every shipped name by tests/test_provider.py.
 BRAND_FORBIDDEN_ENDINGS: tuple[str, ...] = (
     "mab",
     "nib",

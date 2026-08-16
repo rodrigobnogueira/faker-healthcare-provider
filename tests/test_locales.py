@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from types import ModuleType
 
 import pytest
+from conftest import load_brand_name_generator
 from faker import Faker
 
 from faker_healthcare import HealthcareProvider
@@ -32,10 +33,16 @@ SHARED_CONSTANTS = [
 # differs per locale and it is EXEMPT from cardinality parity by design.
 LOCALE_SPECIFIC_CONSTANTS = ["INSURANCE_PLANS"]
 
-# The brand-name generator is shared, not translated: locale providers inherit
-# brand_drug() from the base, so these pools live only in the base constants module
-# (zh_CN adds its own ZH_BRAND_CHARS on top).
-BASE_ONLY_CONSTANTS = ["BRAND_PREFIXES", "BRAND_INFIXES", "BRAND_SUFFIXES", "BRAND_FORBIDDEN_ENDINGS"]
+# The brand-name catalogue is shared, not translated: locale providers inherit
+# brand_drug() from the base, so it and the morphemes it was screened out of live only
+# in the base constants module (zh_CN adds ZH_BRAND_CHARS and ZH_BRAND_NAMES on top).
+BASE_ONLY_CONSTANTS = [
+    "BRAND_DRUG_NAMES",
+    "BRAND_PREFIXES",
+    "BRAND_INFIXES",
+    "BRAND_SUFFIXES",
+    "BRAND_FORBIDDEN_ENDINGS",
+]
 
 # Hiragana and katakana. Simplified Chinese data must contain neither; a katakana drug
 # name (リオチロニン) shipped in zh_CN for several releases.
@@ -146,6 +153,24 @@ class TestLocaleProviders:
         for _ in range(50):
             drug = fake.brand_drug()
             assert re.fullmatch(r"[一-鿿]{2,3} \([A-Z][a-z]{4,13}\)", drug), drug
+
+    def test_zh_brand_drug_draws_only_from_the_screened_lists(self) -> None:
+        """Both halves must come from a shipped list, not be composed at runtime.
+
+        The zh_CN override used to pick 2-3 characters out of ZH_BRAND_CHARS on every
+        call, which is 30,752 identifiers nobody could screen. It now draws the Chinese
+        half from ZH_BRAND_NAMES and the Latin half from the base catalogue.
+        """
+        from faker_healthcare.constants import BRAND_DRUG_NAMES
+        from faker_healthcare.zh_CN import Provider
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        fake = Faker("zh_CN")
+        fake.add_provider(Provider)
+        for _ in range(500):
+            chinese, latin = fake.brand_drug().split(" ", 1)
+            assert chinese in ZH_BRAND_NAMES, chinese
+            assert latin.strip("()") in BRAND_DRUG_NAMES, latin
 
     def test_symptom_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
         fake, locale = fake_locale
@@ -349,3 +374,33 @@ class TestLocaleParity:
             assert data["symptoms"], f"{locale}: '{disease}' has no symptoms"
             assert data["medications"], f"{locale}: '{disease}' has no medications"
             assert data["medical_specialty"], f"{locale}: '{disease}' has no specialty"
+
+
+class TestZhBrandCatalogue:
+    """Same guarantee as the base catalogue, asserted over the whole shipped tuple.
+
+    The Chinese list carries the weaker claim of the two — see the TODO in
+    faker_healthcare/zh_CN/brand_names.py — but "not reviewed by a fluent speaker" is
+    not a licence to skip the screens that can be automated.
+    """
+
+    def test_catalogue_is_non_empty_sorted_and_deduplicated(self) -> None:
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        assert ZH_BRAND_NAMES
+        assert list(ZH_BRAND_NAMES) == sorted(ZH_BRAND_NAMES)
+        assert len(set(ZH_BRAND_NAMES)) == len(ZH_BRAND_NAMES)
+
+    def test_no_shipped_name_fails_any_screen(self) -> None:
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        generator = load_brand_name_generator()
+        catalogue = generator.catalogue_terms(("zh_CN",))
+        offenders = {name: generator.screen_zh(name, catalogue) for name in ZH_BRAND_NAMES}
+        assert {name: reasons for name, reasons in offenders.items() if reasons} == {}
+
+    def test_every_shipped_name_is_reachable_from_the_character_pool(self) -> None:
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_CHARS, ZH_BRAND_NAMES
+
+        offenders = [name for name in ZH_BRAND_NAMES if not set(name) <= set(ZH_BRAND_CHARS)]
+        assert offenders == []
