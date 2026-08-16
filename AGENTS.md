@@ -312,10 +312,18 @@ extract or a de-identification test rig actually holds.
     not in `REAL_PRODUCT_DENYLIST`, no `OFFENSIVE_SUBSTRINGS` term, and no collision with a drug in
     any locale's catalogue. Adding a name means adding it to `REVIEWED_LATIN_NAMES` **after reading
     it**; `--propose N` prints screened candidates spread evenly across prefixes to review.
+  - **The Chinese list works exactly the same way** — `REVIEWED_ZH_NAMES` is its
+    `REVIEWED_LATIN_NAMES`, `--propose-zh N` is its `--propose`, and `ZH_REAL_PRODUCT_DENYLIST` and
+    `ZH_GENERIC_MORPHEMES` are its screens. A locale that invents identifiers does not get a weaker
+    process because the reviewer is harder to find; it gets the same one, and the module says what
+    the review did and did not cover. `ZH_GENERIC_MORPHEMES` is the Chinese `BRAND_FORBIDDEN_ENDINGS`:
+    a name containing 素/维/尔/平/定 reads as a substance (维生素, 美托洛尔, 氨氯地平, 安定), not as a brand.
   - `REAL_PRODUCT_DENYLIST`, `ZH_REAL_PRODUCT_DENYLIST` and `OFFENSIVE_SUBSTRINGS` are
     **append-only**. A name is never removed once added, whatever the reason it went in: removing
     one silently re-admits a name a reviewer already rejected. Discontinued products and marginal
-    collisions stay.
+    collisions stay. Write the reason beside each entry — a 2026-08-16 reading pass rejected 58 of
+    the 64 Chinese names then shipping, and the value of that pass is in the 58 recorded reasons,
+    not in the 6 survivors.
   - Do not restore the old design. `brand_drug()` used to concatenate morphemes at call time (31,500
     names, 30,752 more in zh_CN), retry 12 times against the INN stems, and **return the last
     attempt anyway** when every retry failed. Nothing screened those names for real products, and
@@ -388,6 +396,23 @@ and is governed by the rules above instead.
   a language you do not have — ship it anyway as a static list, say plainly in the module and
   the PR that it is unscreened, and leave a marked TODO. A short unreviewed list is auditable
   and fixable; a runtime generator is neither. Do not describe it as screened.
+- **A locale-specific generated identifier gets the same machinery as the Latin one**, in the
+  same script: its own append-only denylist with a reason per entry, its own equivalent of the
+  INN-stem screen (for Chinese, `ZH_GENERIC_MORPHEMES` — a name that reads as a substance is
+  not a brand), its own reviewed list, its own `--propose`, and the same whole-set test. The
+  TODO above is where such a list *starts*, not where it is allowed to stay: the 64 unreviewed
+  Chinese names carried that TODO for one release, a reading pass then rejected 58 of them, and
+  the six survivors are what "screened" honestly means here.
+- **When the TODO is discharged, replace it with what was actually done — including what was
+  not.** "Read one by one in Simplified Chinese on <date> against <these criteria>; not a
+  trademark search; no native speaker's sign-off recorded" is checkable and is the whole
+  claim. Do not upgrade a reading pass into a sign-off, do not name a reviewer who did not
+  review, and keep inviting the report that lands in the denylist.
+- **Expect the plausible names to be the dangerous ones.** Chinese pharmaceutical brands recycle
+  康/泰/瑞/舒/益/欣 so heavily that the candidates which sound most like a real brand are the ones
+  most likely to be one, while the rest fail plausibility instead. A generator over a saturated
+  morpheme space has no safe middle, which is why the shipped set is small and why growing it
+  means reading candidates one at a time rather than raising a target size.
 
 ## Performance Test Expectations
 

@@ -49,8 +49,9 @@ class Provider(BaseHealthcareProvider):
         runtime, which previously put 30,752 unscreened Chinese names in the API.
 
         The Chinese list carries a weaker guarantee than the Latin one and says so in
-        its own module: it has passed automated screens (a denylist of real trademarks
-        and ordinary words, plus every Chinese term this package ships) but has not been
-        reviewed by a fluent Chinese speaker. Corrections are welcome.
+        its own module: it has passed the automated screens and a Simplified-Chinese
+        reading pass (which rejected 58 of the 64 names that used to ship here), but no
+        trademark register was searched and no fluent native speaker's sign-off is
+        recorded. Corrections are welcome and land in ZH_REAL_PRODUCT_DENYLIST.
         """
         return f"{self.random_element(self.zh_brand_names)} ({super().brand_drug()})"

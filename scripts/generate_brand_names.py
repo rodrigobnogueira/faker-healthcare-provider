@@ -57,11 +57,6 @@ ZH_TARGET = REPO_ROOT / "faker_healthcare" / "zh_CN" / "brand_names.py"
 # The shape `brand_drug()` has always produced, and which tests/test_provider.py pins.
 NAME_PATTERN = re.compile(r"[A-Z][a-z]{4,13}")
 
-# How many Chinese names to ship. Deliberately small: unlike the Latin list, this one
-# has had no fluent-speaker review (see ZH_REVIEW_STATUS below), so the set is kept
-# short enough for one reviewer to read in a sitting.
-ZH_TARGET_SIZE = 64
-
 LOCALES = ("pt_BR", "es_ES", "zh_CN", "fr_FR", "de_DE")
 
 
@@ -445,17 +440,29 @@ REVIEWED_LATIN_NAMES: tuple[str, ...] = (
 # The zh_CN path.
 #
 # zh_CN overrides brand_drug() to prepend an invented 2-3 character Chinese name, which
-# is 30,752 more unscreened identifiers. The same fix applies — ship a static list — but
-# with one honest difference from the Latin list, recorded here and in the generated
-# module so nobody mistakes one for the other.
+# is 30,752 more unscreened identifiers. The same fix applies — screen a set small enough
+# to read, and ship that — with the same two-stage shape as the Latin side: mechanical
+# screens, then a reading pass whose verdicts are recorded here. The difference from the
+# Latin list is what the reading pass could not do, and the generated module says so
+# rather than leaving the reader to assume parity between the two.
 # --------------------------------------------------------------------------------------
-ZH_REVIEW_STATUS = "automated screens only; NOT reviewed by a fluent Chinese speaker"
+ZH_REVIEW_STATUS = "read one by one in Simplified Chinese on 2026-08-16 against the criteria below"
+
+# Characters that read as a GENERIC drug marker rather than as part of a brand name. This
+# is the Chinese counterpart of BRAND_FORBIDDEN_ENDINGS, and it rejects a name for the
+# same reason: a brand that reads as a substance or a drug class is not a brand. It bites
+# harder here, because these are also the characters an invented Chinese brand reaches for.
+ZH_GENERIC_MORPHEMES: dict[str, str] = {
+    "素": "the Chinese ending for a substance class: 维生素, 抗生素, 激素, 胰岛素, 链霉素",
+    "维": "reads as 维生素, 'vitamin'",
+    "尔": "closes the Chinese transliteration of many INNs, the -洛尔 (-olol) class among them",
+    "平": "closes the -地平 (-dipine) and -西平 stems: 氨氯地平, 卡马西平, 喹硫平",
+    "定": "reads as a substance: 安定 is diazepam, 可乐定 is clonidine, 可定 is a marketed statin",
+}
 
 # APPEND-ONLY, same rule as REAL_PRODUCT_DENYLIST. Two-character names reachable from
 # ZH_BRAND_CHARS that are real trademarks, company names, or ordinary Chinese words that
-# would read as a real term rather than an invented brand. Compiled by inspection, which
-# is exactly why ZH_REVIEW_STATUS says what it says: this list is certainly incomplete,
-# and a fluent reviewer should expect to add to it.
+# would read as a real term rather than an invented brand.
 ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (
     "诺华",  # Novartis
     "泰诺",  # Tylenol (CN)
@@ -532,6 +539,77 @@ ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (
     "宁安",  # Ning'an City
     "平乐",  # Pingle County; also the 平乐 school of TCM orthopaedics
     "华清",  # Huaqing, a historic site
+    # Read one by one in Simplified Chinese on 2026-08-16, when the shipped list was the
+    # 64 names an even sample of the screen survivors produced. Fifty-eight of the 64 were
+    # rejected: 16 by the ZH_GENERIC_MORPHEMES screen above, and these 42 individually,
+    # each for the reason beside it. The pattern is worth keeping, because it is the
+    # finding: the more a two-character name reads like a real Chinese drug brand, the
+    # likelier it already is one. 康, 泰, 瑞, 舒, 益 and 欣 are recycled across so many
+    # marketed products and company names that a plausible-sounding pair is a poor bet,
+    # while an implausible pair is not a brand name at all — which is why the reviewed
+    # list below is six names and not sixty.
+    "乐佳",  # marketed health-and-nutrition brand element (乐佳善优)
+    "乐欣",  # common pharmacy and clinic name; also an everyday given name
+    "佳元",  # 元 as the second character reads as "yuan", a unit of currency
+    "佳欣",  # one of the most common female given names
+    "元力",  # 元力股份, a listed company
+    "元泰",  # a real company name (元泰茶业 among others)
+    "力华",  # homophone of 利华, as in 联合利华 (Unilever)
+    "力泽",  # reads as a personal name
+    "华可",  # 可 as the second character does not read as a Chinese brand
+    "华益",  # used by real medical and pharmaceutical companies
+    "博可",  # 可-final, as above
+    "博清",  # reads as a personal name
+    "可复",  # ordinary phrase, "recoverable"; one character from 康复 above
+    "可益",  # ordinary phrase, "beneficial"
+    "和复",  # reads as neither a word nor a brand
+    "安元",  # 元-final, as above
+    "安欣",  # homophone of 安心, "peace of mind"; also the lead of a 2023 national hit drama
+    "康可",  # 可-final; 康 is the most recycled brand morpheme in the pool
+    "康益",  # used by real pharmacies and pharmaceutical companies
+    "恩乐",  # 乐-final: 泰乐, 舒乐, 迪乐, 通乐, 康乐, 安乐 and 平乐 are all already denied
+    "施力",  # ordinary word, "to exert force"
+    "施泽",  # ordinary phrase (施恩泽); also a personal name
+    "欣元",  # 元-final
+    "欣泽",  # reads as a personal name
+    "泰舒",  # 泰 is the most trademark-saturated character here — nine 泰 names denied already
+    "泽力",  # reads as a personal name or a firm
+    "泽清",  # reads as a personal name
+    "清可",  # 可-final
+    "清益",  # reads as a therapeutic claim (清热益气), not as an invented name
+    "特可",  # 可-final
+    "特益",  # ordinary phrase, "especially beneficial"
+    "瑞施",  # 瑞 has produced seven denied names; 施 is a company morpheme (施维雅, 施乐)
+    "瑞通",  # reads as a company name
+    "益宁",  # 益 reads as an efficacy claim, and 益达 / 益力 are already denied
+    "舒康",  # both characters are saturated; reads as a marketed OTC name
+    "诗达",  # reads as a transliterated foreign brand; 诗华 (Ceva) is already denied
+    "诺恩",  # 诺 is the morpheme multinationals take in Chinese (诺华, 诺和); also a biotech name
+    "诺通",  # 诺-initial, as above
+    "达通",  # common company name
+    "迪元",  # 元-final
+    "通元",  # 元-final; also 通元针法, a named acupuncture technique
+    "通欣",  # homophone of the first half of 通心络, a well-known marketed Chinese medicine
+)
+
+# The reviewed Chinese sample: what that pass left standing. Six names, and the smallness
+# is the point — a short list somebody has actually read beats a long one nobody has.
+#
+# Each survivor is a pair that is not a word, not a name people are called, not a place,
+# not recognisable as a company or a product, does not read as a substance, and still
+# reads as a plausible invented pharmaceutical brand. What the review could NOT do is
+# search a trademark register, so none of this establishes that a survivor is unregistered
+# — see the generated module's docstring, which says so to the reader.
+#
+# To grow the list, run `--propose-zh N`, read the candidates against those criteria, and
+# append the survivors here. Never append one nobody has read, and re-run the script.
+REVIEWED_ZH_NAMES: tuple[str, ...] = (
+    "复安",
+    "宁舒",
+    "恩欣",
+    "达恩",
+    "迪欣",
+    "舒迪",
 )
 
 
@@ -587,6 +665,9 @@ def screen_zh(name: str, catalogue: set[str]) -> list[str]:
     reasons: list[str] = []
     if len(set(name)) != len(name):
         reasons.append("repeats a character")
+    generic = [f"{char} — {reason}" for char, reason in ZH_GENERIC_MORPHEMES.items() if char in name]
+    if generic:
+        reasons.append(f"contains a generic-drug morpheme: {'; '.join(generic)}")
     hits = [denied for denied in ZH_REAL_PRODUCT_DENYLIST if denied in name]
     if hits:
         reasons.append(f"listed in ZH_REAL_PRODUCT_DENYLIST: {', '.join(hits)}")
@@ -685,10 +766,26 @@ def build_latin() -> list[str]:
 
 
 def build_zh() -> list[str]:
-    """The shipped Chinese names: an even sample of what the screens leave standing."""
+    """The shipped Chinese names: the reviewed sample, minus anything a screen rejects.
+
+    Built the same way as the Latin list, and deliberately so: an even sample of the
+    screen survivors is what produced the 64-name list that a Simplified-Chinese reading
+    pass then rejected 58 of. A machine can say a name is denied; only a reader can say it
+    is somebody's product, an ordinary word, or a person's name.
+    """
     catalogue = catalogue_terms(("zh_CN",))
-    survivors = [name for name in zh_space() if not screen_zh(name, catalogue)]
-    return even_sample(survivors, ZH_TARGET_SIZE, key=lambda name: name[0])
+    space = set(zh_space())
+    shipped: list[str] = []
+    for name in REVIEWED_ZH_NAMES:
+        if name not in space:
+            print(f"dropping {name}: not reachable from ZH_BRAND_CHARS", file=sys.stderr)
+            continue
+        reasons = screen_zh(name, catalogue)
+        if reasons:
+            print(f"dropping {name}: {'; '.join(reasons)}", file=sys.stderr)
+            continue
+        shipped.append(name)
+    return sorted(set(shipped))
 
 
 def unreviewed_survivors() -> list[str]:
@@ -696,6 +793,13 @@ def unreviewed_survivors() -> list[str]:
     catalogue = catalogue_terms(LOCALES)
     reviewed = set(REVIEWED_LATIN_NAMES)
     return [name for name in latin_space() if name not in reviewed and not screen_latin(name, catalogue)]
+
+
+def unreviewed_zh_survivors() -> list[str]:
+    """Chinese names that pass every screen and are not already reviewed."""
+    catalogue = catalogue_terms(("zh_CN",))
+    reviewed = set(REVIEWED_ZH_NAMES)
+    return [name for name in zh_space() if name not in reviewed and not screen_zh(name, catalogue)]
 
 
 def render_latin(names: list[str]) -> str:
@@ -721,14 +825,24 @@ def render_zh(names: list[str]) -> str:
         "Screened fictitious Chinese brand names for the zh_CN ``brand_drug()``.\n\n"
         "GENERATED FILE - do not edit by hand. Regenerate with::\n\n"
         "    python scripts/generate_brand_names.py\n\n"
-        "TODO(review): these names have had "
-        f"{ZH_REVIEW_STATUS}.\n"
-        "They are two-character combinations of the generic pharmaceutical characters in\n"
-        "``ZH_BRAND_CHARS``, filtered against a denylist of real trademarks and ordinary\n"
-        "words compiled by inspection, and against every Chinese term this package ships.\n"
-        "That denylist is certainly incomplete. Shipping this list rather than generating\n"
-        "30,752 combinations at runtime is what makes a fluent reviewer's pass possible at\n"
-        "all - it is not a substitute for one. Corrections are welcome and land in\n"
+        "These are two-character combinations of the pharmaceutical characters in\n"
+        "``ZH_BRAND_CHARS``, screened against a denylist of real trademarks, company names,\n"
+        "ordinary words and personal names; against the characters that read as a generic\n"
+        "drug rather than as a brand (``ZH_GENERIC_MORPHEMES``); and against every Chinese\n"
+        "term this package ships.\n\n"
+        "**Review status.** Every candidate was\n"
+        f"{ZH_REVIEW_STATUS}: does the pair\n"
+        "name a real company or product, does it read as an ordinary word, a personal name\n"
+        "or a place, does it read as a substance rather than a brand, and does it read as a\n"
+        "plausible invented brand at all. That pass rejected 58 of the 64 names this module\n"
+        "used to ship; each rejection is recorded, with its reason, in the screens in\n"
+        "``scripts/generate_brand_names.py``. Six survived, and the list is short because\n"
+        "the review was strict, not because the space is.\n\n"
+        "What that pass was NOT: a trademark search - no register was consulted, and none\n"
+        "of these names is claimed to be unregistered - and not a fluent native speaker's\n"
+        "sign-off, which this repository has not received and does not claim. Chinese\n"
+        "pharmaceutical brands recycle these characters so heavily that a collision is\n"
+        "likelier here than in the Latin catalogue. Reports of one are welcome and land in\n"
         "ZH_REAL_PRODUCT_DENYLIST, which is append-only.\n",
         "ZH_BRAND_NAMES",
         "tuple[str, ...]",
@@ -739,11 +853,17 @@ def render_zh(names: list[str]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="fail if the generated modules are out of date")
-    parser.add_argument("--propose", type=int, metavar="N", help="print N unreviewed survivors for human review")
+    parser.add_argument("--propose", type=int, metavar="N", help="print N unreviewed Latin survivors for human review")
+    parser.add_argument("--propose-zh", type=int, metavar="N", help="print N unreviewed Chinese survivors for human review")
     args = parser.parse_args(argv)
 
     if args.propose is not None:
         for name in even_sample(unreviewed_survivors(), args.propose):
+            print(name)
+        return 0
+
+    if args.propose_zh is not None:
+        for name in even_sample(unreviewed_zh_survivors(), args.propose_zh, key=lambda name: name[0]):
             print(name)
         return 0
 

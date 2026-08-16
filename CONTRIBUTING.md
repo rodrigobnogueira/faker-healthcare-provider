@@ -373,11 +373,22 @@ and not "any resemblance is coincidental" — those are unfalsifiable, this repo
 shipped both, and five reachable names contradicted them. Keep the wording checkable.
 Reports of a collision are welcome; they land in the denylist.
 
-**The Chinese list is weaker and says so.** `ZH_BRAND_NAMES` passes the automated screens
-but has not been reviewed by a fluent Chinese speaker, and `faker_healthcare/zh_CN/brand_names.py`
-carries a `TODO(review)` to that effect. If you read Chinese, a review pass is a genuinely
-useful contribution: additions go to `ZH_REAL_PRODUCT_DENYLIST` with the reason, then
-re-run the script.
+**The Chinese list runs the same process and states a narrower claim.** `REVIEWED_ZH_NAMES`
+is the Chinese `REVIEWED_LATIN_NAMES`, `--propose-zh N` is its `--propose`, and it has two
+screens of its own: `ZH_REAL_PRODUCT_DENYLIST` (append-only, a reason per entry) and
+`ZH_GENERIC_MORPHEMES`, the Chinese counterpart of the INN-stem screen — a name containing
+素/维/尔/平/定 reads as a *substance* (维生素, 美托洛尔, 氨氯地平, 安定 = diazepam), not as a brand.
+
+The 64 names that module used to ship were read one by one in Simplified Chinese on
+**2026-08-16** and 58 were rejected — real companies and products, ordinary words, personal
+names, and pairs that do not read as a brand at all. Six survived. That is the honest yield
+in a morpheme space this saturated: with 康/泰/瑞/舒/益/欣 recycled across so many marketed
+products, the candidates that sound most like a real Chinese drug brand are the likeliest to
+be one. The module states what the pass was **and what it was not** — no trademark register
+was searched, and no fluent native speaker's sign-off is recorded — so do not describe it as
+one. If you read Chinese, a second pass is genuinely useful: rejections go to
+`ZH_REAL_PRODUCT_DENYLIST` with the reason, additions go to `REVIEWED_ZH_NAMES` only after
+you have read them, and then re-run the script.
 
 ### Any other generated identifier follows the same rule
 
@@ -389,6 +400,13 @@ claim more than the screen supports. If a set cannot be responsibly screened (sa
 a language you do not read), ship it as a static list anyway, mark it unscreened in the
 module and in the PR, and leave the TODO: a short unreviewed list can be audited and fixed,
 a runtime generator cannot.
+
+**A locale-specific set gets the same machinery, not a lighter one**: its own append-only
+denylist with a reason per entry, its own equivalent of the INN-stem screen, its own
+reviewed list and `--propose`, and the same whole-set test — all in the same script. And
+the TODO is where such a list starts, not where it stays: when the review happens, replace
+the TODO with what was actually done *and what was not*, which is the only version of the
+claim a reader can check.
 
 ### Diagnostic codes, provenance, and licensing
 

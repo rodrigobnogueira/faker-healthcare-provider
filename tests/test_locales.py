@@ -803,9 +803,9 @@ class TestZhTranslationEquivalence:
 class TestZhBrandCatalogue:
     """Same guarantee as the base catalogue, asserted over the whole shipped tuple.
 
-    The Chinese list carries the weaker claim of the two — see the TODO in
-    faker_healthcare/zh_CN/brand_names.py — but "not reviewed by a fluent speaker" is
-    not a licence to skip the screens that can be automated.
+    The Chinese list is the weaker of the two and its module says exactly how — it has had
+    a Simplified-Chinese reading pass but no trademark search and no recorded native
+    speaker's sign-off — which is not a licence to skip the screens that can be automated.
     """
 
     def test_catalogue_is_non_empty_sorted_and_deduplicated(self) -> None:
