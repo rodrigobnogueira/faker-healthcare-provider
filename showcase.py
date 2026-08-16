@@ -78,6 +78,10 @@ def showcase_medications() -> None:
     for _ in range(5):
         print(f"  • {fake.generic_drug()}")
 
+    print_subheader("Non-Drug Interventions")
+    for _ in range(5):
+        print(f"  • {fake.intervention()}")
+
 
 def showcase_symptoms_and_procedures() -> None:
     """Demonstrate symptoms and procedures."""
