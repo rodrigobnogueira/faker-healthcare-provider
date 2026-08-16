@@ -12,6 +12,7 @@ from .constants import (
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
+    NON_DRUG_INTERVENTIONS,
     VITAL_SIGNS,
 )
 from .types import DiseaseData
@@ -71,11 +72,31 @@ class HealthcareProvider(BaseProvider):
 
     @property
     def generic_drugs(self) -> tuple[str, ...]:
-        """All unique medications (derived from DISEASE_CORRELATIONS)."""
+        """All unique drugs (derived from DISEASE_CORRELATIONS).
+
+        Non-drug interventions (surgery, devices, diets) are excluded: they belong in a
+        condition's treatment list but not in the flat pool a consumer draws a medication
+        column from. They are available separately via `interventions`.
+        """
+        interventions = set(self.non_drug_interventions)
         all_meds: set[str] = set()
         for data in self.disease_correlations.values():
             all_meds.update(data["medications"])
-        return tuple(sorted(all_meds))
+        return tuple(sorted(all_meds - interventions))
+
+    @property
+    def interventions(self) -> tuple[str, ...]:
+        """All non-drug interventions this locale's catalog actually prescribes.
+
+        Derived from DISEASE_CORRELATIONS by intersecting it with
+        `non_drug_interventions`, so a declared intervention that no condition uses
+        never shows up here.
+        """
+        declared = set(self.non_drug_interventions)
+        present: set[str] = set()
+        for data in self.disease_correlations.values():
+            present.update(med for med in data["medications"] if med in declared)
+        return tuple(sorted(present))
 
     @property
     def medical_specialties(self) -> tuple[str, ...]:
@@ -94,6 +115,8 @@ class HealthcareProvider(BaseProvider):
     insurance_plans: ElementsType[str] = INSURANCE_PLANS
 
     vital_signs: ElementsType[str] = VITAL_SIGNS
+
+    non_drug_interventions: ElementsType[str] = NON_DRUG_INTERVENTIONS
 
     def disease(self) -> str:
         """Return a random disease name."""
@@ -122,7 +145,12 @@ class HealthcareProvider(BaseProvider):
         return self.random_element(self.hospital_departments)
 
     def generic_drug(self) -> str:
+        """Return a random generic drug name (never a non-drug intervention)."""
         return self.random_element(self.generic_drugs)
+
+    def intervention(self) -> str:
+        """Return a random non-drug intervention (a procedure, device, or lifestyle measure)."""
+        return self.random_element(self.interventions)
 
     def brand_drug(self) -> str:
         """Return a fictitious brand-style drug name.
@@ -183,8 +211,9 @@ class HealthcareProvider(BaseProvider):
         """Return a medication.
 
         Args:
-            disease: Optional disease name. If provided, returns a treatment for that disease.
-                    If None, returns a random medication.
+            disease: Optional disease name. If provided, returns a treatment for that disease,
+                    which may be a non-drug intervention if the condition prescribes one.
+                    If None, returns a random drug (never a non-drug intervention).
 
         Raises:
             ValueError: If disease is given but not found in correlations.

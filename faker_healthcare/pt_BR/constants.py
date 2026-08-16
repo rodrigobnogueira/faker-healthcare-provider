@@ -219,3 +219,55 @@ VITAL_SIGNS: tuple[str, ...] = (
     "Pulso",
     "Fluxo de Pico",
 )
+
+# Treatments that a condition's `medications` list may legitimately contain but that
+# are not drugs: procedures, devices, and lifestyle measures. They are correct inside
+# a condition's treatment list (see AGENTS.md), but wrong in the flat pool a consumer
+# draws a medication column from, so `generic_drugs` excludes them and the provider
+# exposes them separately via `interventions` / `intervention()`.
+# Kept in the same order in every locale, so index i is the same intervention
+# everywhere; every entry must also appear in this locale's DISEASE_CORRELATIONS
+# (tests/test_locales.py enforces both).
+NON_DRUG_INTERVENTIONS: tuple[str, ...] = (
+    "Lentes anti-reflexo",
+    "Instilações na bexiga",
+    "Transfusões de sangue",
+    "Terapia CPAP",
+    "Quimioterapia",
+    "Tubo torácico",
+    "Implantes cocleares",
+    "Parto",
+    "Diálise",
+    "Controle dietético",
+    "Gerenciamento de eletrólitos",
+    "Exercício",
+    "Óculos",
+    "Dieta sem glúten",
+    "Aparelhos auditivos",
+    "Ar umidificado",
+    "Hidratação",
+    "Líquidos intravenosos",
+    "Infusões de ferro",
+    "Terapia a laser",
+    "Ampliadores",
+    "Sem medicamentos",
+    "Oxigênio",
+    "Terapia de oxigênio",
+    "Exercícios do assoalho pélvico",
+    "Terapia fotodinâmica",
+    "Plasmaférese",
+    "Pleurodese",
+    "Reabilitação pulmonar",
+    "Radioterapia",
+    "Iodo radioativo",
+    "Irrigação salina",
+    "Esplenectomia",
+    "Inalação de vapor",
+    "Exposição solar",
+    "Cuidados de suporte",
+    "Cirurgia",
+    "Toracocentese",
+    "Vitrectomia",
+    "Repouso vocal",
+    "Tala de punho",
+)

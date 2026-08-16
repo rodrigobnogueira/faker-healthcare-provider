@@ -23,6 +23,11 @@ def _load_correlations(locale: str) -> dict:
     return module.DISEASE_CORRELATIONS
 
 
+def _healthcare_provider(fake: Faker) -> HealthcareProvider:
+    """Return the HealthcareProvider instance backing a Faker, for its derived pools."""
+    return next(p for p in fake.providers if isinstance(p, HealthcareProvider))
+
+
 def _get_provider_for_locale(locale: str) -> type[HealthcareProvider]:
     """Get the appropriate provider class for a given locale."""
     if locale == "en_US":
@@ -134,6 +139,30 @@ class TestLocaleProviders:
         assert isinstance(diagnosis, str)
         assert "(" in diagnosis
         assert ")" in diagnosis
+
+    def test_intervention_returns_string(self, fake_locale: tuple[Faker, str]) -> None:
+        fake, locale = fake_locale
+        intervention = fake.intervention()
+        assert isinstance(intervention, str)
+        assert len(intervention) > 0
+
+    def test_drug_pool_and_intervention_pool_are_disjoint(self, fake_locale: tuple[Faker, str]) -> None:
+        """generic_drug() must never return a procedure, device, or diet in any locale."""
+        fake, locale = fake_locale
+        provider = _healthcare_provider(fake)
+        interventions = set(provider.interventions)
+        assert interventions, f"{locale}: no interventions derived from the catalog"
+        assert interventions.isdisjoint(provider.generic_drugs), locale
+
+    def test_declared_interventions_all_appear_in_the_catalog(self, fake_locale: tuple[Faker, str]) -> None:
+        """A declared intervention that no condition prescribes is a translation left behind."""
+        fake, locale = fake_locale
+        provider = _healthcare_provider(fake)
+        prescribed: set[str] = set()
+        for data in provider.disease_correlations.values():
+            prescribed.update(data["medications"])
+        missing = set(provider.non_drug_interventions) - prescribed
+        assert not missing, f"{locale}: declared interventions not used by any condition: {sorted(missing)}"
 
     def test_unknown_disease_raises_in_every_locale(self, fake_locale: tuple[Faker, str]) -> None:
         """No locale may fall back to an uncorrelated draw for an unknown disease."""

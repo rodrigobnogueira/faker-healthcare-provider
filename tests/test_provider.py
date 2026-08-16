@@ -13,6 +13,11 @@ def faker() -> Faker:
     return fake
 
 
+def _healthcare_provider(fake: Faker) -> HealthcareProvider:
+    """Return the HealthcareProvider instance backing a Faker, for its derived pools."""
+    return next(p for p in fake.providers if isinstance(p, HealthcareProvider))
+
+
 class TestHealthcareProvider:
     def test_disease(self, faker: Faker) -> None:
         for _ in range(100):
@@ -49,6 +54,22 @@ class TestHealthcareProvider:
             result: str = faker.brand_drug()
             assert isinstance(result, str)
             assert re.fullmatch(r"[A-Z][a-z]{4,13}", result), result
+
+    def test_intervention(self, faker: Faker) -> None:
+        provider = _healthcare_provider(faker)
+        for _ in range(100):
+            result: str = faker.intervention()
+            assert isinstance(result, str)
+            assert result in provider.interventions
+
+    def test_generic_drug_never_returns_an_intervention(self, faker: Faker) -> None:
+        """The flat drug pool is what a consumer fills a medication column from."""
+        provider = _healthcare_provider(faker)
+        interventions = set(provider.interventions)
+        assert interventions, "no interventions derived from the catalog"
+        assert interventions.isdisjoint(provider.generic_drugs)
+        for _ in range(200):
+            assert faker.generic_drug() not in interventions
 
     def test_symptom(self, faker: Faker) -> None:
         for _ in range(100):

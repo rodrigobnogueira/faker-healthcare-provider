@@ -34,7 +34,7 @@ class TestOptimization:
             "zh_CN": ZHProvider,
         }
 
-        redundant_attrs = ["diseases", "icd10_codes", "symptoms", "generic_drugs", "medical_specialties"]
+        redundant_attrs = ["diseases", "icd10_codes", "symptoms", "generic_drugs", "interventions", "medical_specialties"]
 
         for locale, provider_class in locale_providers.items():
             for attr in redundant_attrs:
@@ -51,6 +51,7 @@ class TestOptimization:
             "medical_procedures",
             "insurance_plans",
             "vital_signs",
+            "non_drug_interventions",
         ]
 
         all_providers = {**{"en (base)": HealthcareProvider}, **locale_providers}
@@ -82,6 +83,7 @@ class TestOptimization:
             "MEDICAL_PROCEDURES",
             "INSURANCE_PLANS",
             "VITAL_SIGNS",
+            "NON_DRUG_INTERVENTIONS",
         ]
 
         for locale in locales:
