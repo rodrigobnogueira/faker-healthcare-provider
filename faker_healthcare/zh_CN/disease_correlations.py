@@ -63,7 +63,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "骨科",
     },
     "类风湿关节炎": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["关节痛", "肿胀", "疲劳", "虚弱", "肌肉痛"],
         "medications": ["甲氨蝶呤", "泼尼松", "阿达木单抗", "羟氯喹", "柳氮磺胺吡啶"],
         "medical_specialty": "风湿病科",
@@ -94,8 +94,8 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "其他甲状腺功能减退症": {
         "icd10": "E03.9",
-        "symptoms": ["疲劳", "体重减轻", "脱发", "皮肤干燥", "便秘"],
-        "medications": ["左甲状腺素", "リオチロニン", "甲状腺激素"],
+        "symptoms": ["疲劳", "体重增加", "脱发", "皮肤干燥", "便秘"],
+        "medications": ["左甲状腺素", "碘塞罗宁", "甲状腺激素"],
         "medical_specialty": "内分泌科",
     },
     "房颤": {
@@ -251,7 +251,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "弥漫性[综合性]发育障碍": {
         "icd10": "F84.0",
         "symptoms": ["社会损害", "沟通困难", "重复行为", "感觉敏感", "兴趣受限"],
-        "medications": ["利培酮", "阿立哌唑", "选择性血清素再摄取抑制剂", "兴奋剂", "抗惊厥药"],
+        "medications": ["利培酮", "阿立哌唑", "褪黑素"],
         "medical_specialty": "精神科",
     },
     "克罗恩病[局限性肠炎]": {
@@ -536,12 +536,6 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medications": ["无药物", "手术", "眼镜", "防眩光镜片", "放大镜"],
         "medical_specialty": "眼科",
     },
-    "年龄相关性白内障": {
-        "icd10": "H25.9",
-        "symptoms": ["视力逐渐下降", "眩光", "夜间视力差", "颜色感知减弱", "需要频繁更换眼镜"],
-        "medications": ["无药物", "白内障手术", "人工晶体植入", "眼镜", "放大镜"],
-        "medical_specialty": "眼科",
-    },
     "糖尿病视网膜病变": {
         "icd10": "E11.319",
         "symptoms": ["视力模糊", "飞蚊", "视力丧失", "颜色变化", "暗区"],
@@ -754,7 +748,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "压力性尿失禁": {
         "icd10": "N39.3",
-        "symptoms": ["咳嗽、打喷嚏时尿漏", "运动", "举重", "大笑"],
+        "symptoms": ["咳嗽时漏尿", "打喷嚏时漏尿", "大笑时漏尿", "运动时漏尿", "提重物时漏尿"],
         "medications": ["度洛西汀", "雌激素霜", "无药物", "盆底运动", "手术"],
         "medical_specialty": "泌尿科",
     },
@@ -913,6 +907,12 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "symptoms": ["持续疼痛", "疲劳", "睡眠障碍", "抑郁", "活动减少"],
         "medications": ["加巴喷丁", "度洛西汀", "曲马多", "阿米替林", "布洛芬"],
         "medical_specialty": "疼痛医学科",
+    },
+    "痫性发作": {
+        "icd10": "G40.909",
+        "symptoms": ["癫痫发作", "意识丧失", "惊厥", "意识模糊", "不自主运动"],
+        "medications": ["左乙拉西坦", "丙戊酸", "卡马西平", "拉莫三嗪", "托吡酯"],
+        "medical_specialty": "神经内科",
     },
     "带状疱疹": {
         "icd10": "B02.9",

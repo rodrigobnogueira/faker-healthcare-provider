@@ -63,7 +63,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medical_specialty": "Orthopédie",
     },
     "Polyarthrite rhumatoïde": {
-        "icd10": "M79.1",
+        "icd10": "M06.9",
         "symptoms": ["Douleur articulaire", "Œdème", "Fatigue", "Faiblesse", "Douleurs musculaires"],
         "medications": ["Methotrexate", "Prednisone", "Adalimumab", "Hydroxychloroquine", "Sulfasalazine"],
         "medical_specialty": "Rhumatologie",
@@ -94,7 +94,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Hypothyroïdie": {
         "icd10": "E03.9",
-        "symptoms": ["Fatigue", "Perte de poids", "Perte de cheveux", "Peau sèche", "Constipation"],
+        "symptoms": ["Fatigue", "Prise de poids", "Perte de cheveux", "Peau sèche", "Constipation"],
         "medications": ["Levothyroxine", "Liothyronine", "Thyroid"],
         "medical_specialty": "Endocrinologie",
     },
@@ -251,7 +251,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     "Trouble du spectre autistique": {
         "icd10": "F84.0",
         "symptoms": ["Altération sociale", "Difficultés de communication", "Comportements répétitifs", "Sensibilités sensorielles", "Intérêts restreints"],
-        "medications": ["Risperidone", "Aripiprazole", "SSRIs", "Stimulants", "Anticonvulsants"],
+        "medications": ["Risperidone", "Aripiprazole", "Melatonin"],
         "medical_specialty": "Psychiatrie",
     },
     "Maladie de Crohn": {
@@ -748,7 +748,7 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
     },
     "Incontinence d'effort": {
         "icd10": "N39.3",
-        "symptoms": ["Fuite urinaire à la toux", "Éternuement", "Exercice", "Levage", "Rire"],
+        "symptoms": ["Fuite urinaire à la toux", "Fuite urinaire à l'éternuement", "Fuite urinaire au rire", "Fuite urinaire à l'effort", "Fuite urinaire au port de charges"],
         "medications": ["Duloxetine", "Estrogen Cream", "No Medications", "Pelvic Floor Exercises", "Surgery"],
         "medical_specialty": "Urologie",
     },
