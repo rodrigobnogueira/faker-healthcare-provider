@@ -170,21 +170,70 @@ the "N diseases" count in each module docstring.
   `ValueError`. Never make one fall back to a random draw: the caller asked about one
   condition and would silently receive another's data.
 
-### Brand drug names are fictitious — keep it that way
+### Brand drug names come from a screened list
 
-`brand_drug()` *generates* names from invented morphemes (`BRAND_PREFIXES`,
-`BRAND_INFIXES`, `BRAND_SUFFIXES`, with `BRAND_FORBIDDEN_ENDINGS` rejecting anything
-that would read like a generic; `zh_CN` has an equivalent Chinese-character path).
+`brand_drug()` returns `random_element(BRAND_DRUG_NAMES)` — 245 invented names in the
+generated `faker_healthcare/brand_names.py`. `zh_CN` pairs one of them with a Chinese
+name from the generated `ZH_BRAND_NAMES`. **Never add a real trademark anywhere**, not
+to `medications` and not to the morpheme pools.
 
-**Never add a real trademark anywhere** — not to `medications`, not to the morpheme
-pools. This repository previously shipped real brand names and had to remove them;
-the current generator and its tests are the fix. `tests/test_provider.py::TestBrandGenerator`
-asserts the output pattern, that no famous real brand is ever produced, that no name
-ends in a WHO INN class stem (`-mab`, `-pril`, `-statin`, …), and that 1000 draws
-yield more than 300 distinct names. Do not weaken or delete those assertions; if a new
-morpheme makes the suite fail, the morpheme is wrong, not the test. New morphemes must
-also be checked for offensive or trademark-like substrings when concatenated with the
-existing pools.
+Both generated modules are written by `scripts/generate_brand_names.py`:
+
+```bash
+python scripts/generate_brand_names.py            # rewrite the generated modules
+python scripts/generate_brand_names.py --check    # fail if they are out of date
+python scripts/generate_brand_names.py --propose 20   # candidates to review
+```
+
+Edit the script, never the generated modules — `tests/test_provider.py` re-runs it in
+`--check` mode and fails if a committed file differs by a byte. The morpheme tuples
+(`BRAND_PREFIXES`, `BRAND_INFIXES`, `BRAND_SUFFIXES`) and `ZH_BRAND_CHARS` are the
+script's **input**, so changing one has no effect until you re-run it.
+
+Every candidate is screened four ways: it must not end in a `BRAND_FORBIDDEN_ENDINGS`
+WHO INN class stem, must not be in `REAL_PRODUCT_DENYLIST`, must contain no term from
+`OFFENSIVE_SUBSTRINGS`, and must not collide with a drug in any locale's catalogue.
+`tests/test_provider.py::TestBrandCatalogue` re-runs those screens over **every** shipped
+name, one by one, and `TestZhBrandCatalogue` does the same for the Chinese list. Do not
+weaken those assertions or switch them to sampling: sampling the generator says nothing
+about the entry it did not draw.
+
+**Why a list instead of a generator.** `brand_drug()` used to concatenate morphemes on
+every call — 31,500 possible names, 30,752 more for the Chinese path — retry 12 times if
+the result ended in an INN stem, and then *return the last attempt anyway* if all 12
+failed. Nothing in it screened for real product names. When the same morphemes were
+ported to faker-js, a human screen of a ~250-name sample found five that shadow real
+products (two of them FDA veterinary drugs), and all five were reachable here too. You
+cannot screen 31,500 names; you can screen 250. That is the whole trade.
+
+**Adding names.** Run `--propose N`, **read** the candidates, and append the ones that
+survive to `REVIEWED_LATIN_NAMES`. Never append a name nobody has read. The three screen
+lists — `REAL_PRODUCT_DENYLIST`, `ZH_REAL_PRODUCT_DENYLIST`, `OFFENSIVE_SUBSTRINGS` — are
+**append-only**: entries are never removed, whatever the reason they went in, because
+removing one silently re-admits a name a reviewer already rejected.
+
+**What the package claims**, in README.md and in the modules themselves: curated fictional
+names, screened against a documented corpus on a stated date. Not "never a real trademark"
+and not "any resemblance is coincidental" — those are unfalsifiable, this repository
+shipped both, and five reachable names contradicted them. Keep the wording checkable.
+Reports of a collision are welcome; they land in the denylist.
+
+**The Chinese list is weaker and says so.** `ZH_BRAND_NAMES` passes the automated screens
+but has not been reviewed by a fluent Chinese speaker, and `faker_healthcare/zh_CN/brand_names.py`
+carries a `TODO(review)` to that effect. If you read Chinese, a review pass is a genuinely
+useful contribution: additions go to `ZH_REAL_PRODUCT_DENYLIST` with the reason, then
+re-run the script.
+
+### Any other generated identifier follows the same rule
+
+If you add a method that invents a **user-visible name** — a product, a facility, a plan —
+it must draw from a screened, enumerable, committed set, produced by a deterministic
+committed script, with a test that iterates the whole set and asserts the safety property
+on every entry. Do not assemble one at runtime from a space too large to screen, and do not
+claim more than the screen supports. If a set cannot be responsibly screened (say, it needs
+a language you do not read), ship it as a static list anyway, mark it unscreened in the
+module and in the PR, and leave the TODO: a short unreviewed list can be audited and fixed,
+a runtime generator cannot.
 
 ### Diagnostic codes, provenance, and licensing
 

@@ -11,13 +11,19 @@ changes small, data-focused, and easy to verify.
 
 - `faker_healthcare/provider.py` — the base `HealthcareProvider` and its public API.
 - `faker_healthcare/disease_correlations.py` — the English `DISEASE_CORRELATIONS` catalog.
-- `faker_healthcare/constants.py` — static English tuples (departments, brand drugs, etc.).
+- `faker_healthcare/constants.py` — static English tuples (departments, allergies, the
+  brand-name morpheme pools, etc.), and the re-export of `BRAND_DRUG_NAMES`.
+- `faker_healthcare/brand_names.py` and `faker_healthcare/zh_CN/brand_names.py` —
+  **generated**; the screened brand-name catalogues. Never edit them by hand.
+- `scripts/generate_brand_names.py` — the screens and the review record that produce those
+  two modules. This is the file you edit when a brand name has to change.
 - `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` TypedDicts (the data shapes).
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
   `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`, and
   `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
-  `test_performance.py`, `test_readme.py`.
+  `test_performance.py`, `test_readme.py`, and `conftest.py` (which loads the generator
+  script so the tests re-run its screens instead of restating them).
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
   `python` block and calls every method the "Available Methods" table lists. Change a public
   method and the README changes with it, in the same PR.
@@ -139,10 +145,27 @@ the failure this library exists to prevent.
   documentation. Newer-than-your-training drugs/codes can be real — confirm, don't assume fake.
 - When you add a condition, append it to the end of each `disease_correlations.py` (order is not
   significant) and update the "N diseases" count in each module docstring.
-- **Brand names are fictitious and generated.** `brand_drug()` builds names from invented morphemes
-  (`BRAND_PREFIXES` / `BRAND_INFIXES` / `BRAND_SUFFIXES`, refusing endings in `BRAND_FORBIDDEN_ENDINGS`
-  so they can't look like a generic; zh_CN adds a Chinese-character path). **Never add a real trademark**
-  anywhere — not to the morpheme pools, not to `medications`.
+- **Brand names are fictitious and come from a screened, committed list.** `brand_drug()` returns
+  `random_element(BRAND_DRUG_NAMES)` — 245 names in the generated `faker_healthcare/brand_names.py`
+  — and zh_CN pairs one with a name from the generated `ZH_BRAND_NAMES`. **Never add a real
+  trademark anywhere**, not to `medications` and not to the morpheme pools.
+  - Both generated modules are written by `scripts/generate_brand_names.py`. Edit that script, not
+    the modules; `tests/test_provider.py` re-runs it in `--check` mode and fails if the committed
+    files differ. The morpheme tuples (`BRAND_PREFIXES` / `BRAND_INFIXES` / `BRAND_SUFFIXES`) and
+    `ZH_BRAND_CHARS` are its **input**, so editing one changes nothing until you re-run it.
+  - The script screens every candidate four ways: no `BRAND_FORBIDDEN_ENDINGS` WHO INN class stem,
+    not in `REAL_PRODUCT_DENYLIST`, no `OFFENSIVE_SUBSTRINGS` term, and no collision with a drug in
+    any locale's catalogue. Adding a name means adding it to `REVIEWED_LATIN_NAMES` **after reading
+    it**; `--propose N` prints screened candidates spread evenly across prefixes to review.
+  - `REAL_PRODUCT_DENYLIST`, `ZH_REAL_PRODUCT_DENYLIST` and `OFFENSIVE_SUBSTRINGS` are
+    **append-only**. A name is never removed once added, whatever the reason it went in: removing
+    one silently re-admits a name a reviewer already rejected. Discontinued products and marginal
+    collisions stay.
+  - Do not restore the old design. `brand_drug()` used to concatenate morphemes at call time (31,500
+    names, 30,752 more in zh_CN), retry 12 times against the INN stems, and **return the last
+    attempt anyway** when every retry failed. Nothing screened those names for real products, and
+    the same morphemes ported to faker-js produced five that shadow real products — two of them FDA
+    veterinary drugs. A number that large cannot be screened; that is the whole reason for the list.
 - **Diagnostic codes are kept as reference data.** ICD-10-CM codes come from CDC/NCHS (distributed free
   by the U.S. government); base WHO ICD-10 codes are used under **CC BY-ND 3.0 IGO** — reproduce codes
   verbatim, keep the WHO attribution in the module docstrings and README, and never modify a code.
@@ -155,6 +178,34 @@ the failure this library exists to prevent.
   `disease_medical_specialty()` — fails CI. The same test asserts every non-English example
   imports that locale's own `Provider`; adding the base `HealthcareProvider` to a
   `Faker('es_ES')` loads the **English** catalog, which is what the README used to teach.
+
+## Generated Identifiers (the screened-set rule)
+
+Applies to every **user-visible identifier this package invents** — a brand name, a product
+name, a facility or plan name, anything a consumer could mistake for a real named thing.
+Clinical data drawn from real catalogues (ICD-10 codes, INN drug names) is reference data
+and is governed by the rules above instead.
+
+- **Draw it from a screened, enumerable, committed set. Never assemble it at runtime from a
+  space too large to screen.** `random_element(SOME_TUPLE)`, not a loop over morpheme pools.
+  The size of the set is the point: a set you can print is a set someone can read, and
+  reading it is the only step that catches "this invented name is somebody's product".
+- **Generate the set with a committed script, not by hand.** Deterministic, no RNG, sorted
+  output, idempotent — re-running it must reproduce the committed file byte for byte, and a
+  test must assert that (`--check`). Otherwise the shipped list and the screens drift apart
+  and nobody notices.
+- **Screen lists are append-only.** Once a name is denied it stays denied, with the reason in
+  a comment. Removing an entry re-admits a name a reviewer rejected, and does it invisibly.
+- **Assert the safety property by iterating the whole shipped set**, in a test that fails on
+  the offending entries by name. Sampling the *generator* — "1000 draws, none of them bad" —
+  proves nothing about the entry it did not draw, and neither does a distinctness count.
+- **State the claim you can actually support.** "Screened against <these corpora> on <date>"
+  is checkable. "Not a real trademark" and "any resemblance is coincidental" are not, and
+  this repository shipped both while five reachable names shadowed real products.
+- **If a set cannot be responsibly screened** — for instance because it needs a reviewer with
+  a language you do not have — ship it anyway as a static list, say plainly in the module and
+  the PR that it is unscreened, and leave a marked TODO. A short unreviewed list is auditable
+  and fixable; a runtime generator is neither. Do not describe it as screened.
 
 ## Performance Test Expectations
 

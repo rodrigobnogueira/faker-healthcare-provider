@@ -5,10 +5,7 @@ from faker.providers import BaseProvider, ElementsType
 from .constants import (
     ALLERGIES,
     BLOOD_TYPES,
-    BRAND_FORBIDDEN_ENDINGS,
-    BRAND_INFIXES,
-    BRAND_PREFIXES,
-    BRAND_SUFFIXES,
+    BRAND_DRUG_NAMES,
     HOSPITAL_DEPARTMENTS,
     INSURANCE_PLANS,
     MEDICAL_PROCEDURES,
@@ -118,6 +115,8 @@ class HealthcareProvider(BaseProvider):
 
     non_drug_interventions: ElementsType[str] = NON_DRUG_INTERVENTIONS
 
+    brand_drug_names: ElementsType[str] = BRAND_DRUG_NAMES
+
     def disease(self) -> str:
         """Return a random disease name."""
         return self.random_element(self.diseases)
@@ -153,22 +152,16 @@ class HealthcareProvider(BaseProvider):
         return self.random_element(self.interventions)
 
     def brand_drug(self) -> str:
-        """Return a fictitious brand-style drug name.
+        """Return a fictitious brand-style drug name from the screened catalogue.
 
-        The name is generated from invented morphemes (never a real trademark)
-        and deliberately avoids WHO INN stems, so it cannot be mistaken for a
-        generic substance name. Any resemblance to a real brand is coincidental.
+        The names in `brand_drug_names` are invented, built from the morphemes in
+        `constants.py` by `scripts/generate_brand_names.py`, screened against WHO INN
+        class stems, a real-product denylist, an offensive-substring list, and this
+        package's own generic-drug catalogue, and then read by a human. That last step
+        is only possible because the shipped set is ~250 names; it is not a trademark
+        search, and it is accurate as of the date recorded in README.md.
         """
-        name = ""
-        for _ in range(12):
-            parts = [self.random_element(BRAND_PREFIXES)]
-            if self.generator.random.random() < 0.4:
-                parts.append(self.random_element(BRAND_INFIXES))
-            parts.append(self.random_element(BRAND_SUFFIXES))
-            name = "".join(parts)
-            if not name.lower().endswith(BRAND_FORBIDDEN_ENDINGS):
-                break
-        return name
+        return self.random_element(self.brand_drug_names)
 
     def symptom(self, disease: str | None = None) -> str:
         """Return a symptom.
