@@ -620,10 +620,15 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medications": ["羟基脲", "止痛药", "抗生素", "输血", "Voxelotor"],
         "medical_specialty": "血液科",
     },
-    "血友病": {
-        "icd10": "D68.311",
+    # Haemophilia A (D66, hereditary factor VIII deficiency), recoded from D68.311, which
+    # is acquired haemophilia. The base catalogue carries the sourcing and the reason.
+    # 血友病A is the name the Chinese guideline uses for the congenital disease
+    # (血友病治疗中国指南（2020年版）); the acquired form has its own guideline and its own
+    # name, 获得性血友病A, so the two are not interchangeable in Chinese either.
+    "血友病A": {
+        "icd10": "D66",
         "symptoms": ["出血时间延长", "关节痛", "瘀伤", "关节积血", "鼻出血"],
-        "medications": ["因子VIII", "因子IX", "去氨加压素", "抗纤溶药", "艾美赛珠单抗"],
+        "medications": ["因子VIII", "去氨加压素", "氨甲环酸", "艾美赛珠单抗"],
         "medical_specialty": "血液科",
     },
     "血小板减少": {

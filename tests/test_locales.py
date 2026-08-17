@@ -800,6 +800,139 @@ class TestZhTranslationEquivalence:
         assert not disagreements, f"MEDICATION_NAMES and ZH_MEDICATIONS disagree (table, MEDICATION_NAMES): {disagreements}"
 
 
+class TestDiseaseEntityCoherence:
+    """A condition's ICD-10 code and its medications must name the SAME disease entity.
+
+    The catalogue shipped `"Hemophilia": {"icd10": "D68.311", "medications": ["Factor
+    VIII", "Factor IX", "Desmopressin", "Antifibrinolytics", "Emicizumab"]}` for several
+    releases. D68.311 is *acquired* haemophilia — an autoimmune factor VIII inhibitor,
+    treated with immunosuppression and bypassing agents — while factor replacement,
+    desmopressin and emicizumab all treat the congenital disease, and emicizumab's FDA
+    label says so in as many words ("hemophilia A (congenital factor VIII deficiency)").
+    Every other check in this file passed on it: the code is well formed, the drugs are
+    real, the specialty is right, the counts match in all six locales, and the Chinese
+    names are the committed equivalents of the English ones. What nothing looked at was
+    whether the code and the drugs were about the same disease.
+
+    So this is the generalised form rather than a pin on one entry: a table of codes that
+    name one specific molecular entity, and the therapies that belong to a *different*
+    one. It already covers the two haemophilia codes the catalogue does not yet carry, so
+    a future D67 entry treated with factor VIII fails before it is reviewed.
+    """
+
+    # Therapies are matched by pattern, not by exact string, because one substance is
+    # spelled six ways (Factor/Fator/Faktor/因子) and a table of exact strings would go
+    # stale the moment a locale is added. The patterns are deliberately loose about
+    # spelling and strict about the entity: `VIII` and `IX` are the whole point.
+    THERAPY_PATTERNS = {
+        "factor VIII replacement": re.compile(r"(fa[ck]?tor|因子)\s*VIII", re.IGNORECASE),
+        "factor IX replacement": re.compile(r"(fa[ck]?tor|因子)\s*IX", re.IGNORECASE),
+        "desmopressin": re.compile(r"desmopres|去氨加压素", re.IGNORECASE),
+        "emicizumab": re.compile(r"emicizumab|艾美赛珠单抗", re.IGNORECASE),
+    }
+
+    # Per ICD-10 code: what the code means, and the therapies that must never appear
+    # beside it because they treat another entity. Sources are in the base catalogue's
+    # comment on "Hemophilia A" and in the FDA labels it cites.
+    INCOMPATIBLE = {
+        # Acquired haemophilia. The patient's own genes make factor VIII normally; an
+        # autoantibody neutralises it. Routine replacement of a protein that is not
+        # missing, and emicizumab, which is licensed for the congenital disease, both
+        # describe a different patient. This is the pairing that shipped.
+        "D68.311": ("acquired haemophilia", ("factor VIII replacement", "factor IX replacement", "desmopressin", "emicizumab")),
+        # Hereditary factor VIII deficiency (haemophilia A). Factor IX replacement is
+        # haemophilia B therapy, and naming it here is what made the old entry read as
+        # two diseases at once.
+        "D66": ("hereditary factor VIII deficiency (haemophilia A)", ("factor IX replacement",)),
+        # Hereditary factor IX deficiency (haemophilia B). Not in the catalogue today;
+        # the rule is here so that adding it wrong is a failure rather than a review
+        # comment. Desmopressin is explicitly *not* indicated in haemophilia B (FDA DDAVP
+        # Injection label) and emicizumab is licensed for haemophilia A only.
+        "D67": ("hereditary factor IX deficiency (haemophilia B)", ("factor VIII replacement", "desmopressin", "emicizumab")),
+    }
+
+    # The therapy a deficiency code must prescribe. Without this half, an entry could
+    # satisfy the rule above by prescribing nothing specific at all.
+    REQUIRED = {"D66": "factor VIII replacement", "D67": "factor IX replacement"}
+
+    # The entry exactly as it shipped, kept as the fixture the check is proved against so
+    # the assertion cannot go quietly vacuous now that the catalogue is clean.
+    SHIPPED_DEFECT = {
+        "Hemophilia": {
+            "icd10": "D68.311",
+            "symptoms": ["Prolonged Bleeding", "Joint Pain", "Bruising", "Hemarthrosis", "Nosebleeds"],
+            "medications": ["Factor VIII", "Factor IX", "Desmopressin", "Antifibrinolytics", "Emicizumab"],
+            "medical_specialty": "Hematology",
+        },
+    }
+
+    @classmethod
+    def _violations(cls, catalogue: dict) -> list[str]:
+        """Every (condition, therapy) pair whose therapy belongs to another entity."""
+        found: list[str] = []
+        for name, data in catalogue.items():
+            if data["icd10"] not in cls.INCOMPATIBLE:
+                continue
+            entity, forbidden = cls.INCOMPATIBLE[data["icd10"]]
+            for therapy in forbidden:
+                pattern = cls.THERAPY_PATTERNS[therapy]
+                found.extend(f"{data['icd10']} ({name}) is {entity} but prescribes {therapy}: {medication}" for medication in data["medications"] if pattern.search(medication))
+        return found
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_no_condition_prescribes_another_entitys_therapy(self, locale: str) -> None:
+        violations = self._violations(_load_correlations(locale))
+        assert not violations, f"{locale}: {violations}"
+
+    @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
+    def test_a_deficiency_code_prescribes_replacement_of_the_factor_it_names(self, locale: str) -> None:
+        """The positive half, and the thing that keeps the negative half honest: it runs
+        the patterns against the real catalogue in every locale, so a pattern that does
+        not recognise `Faktor VIII` fails here instead of silently excusing German."""
+        catalogue = _load_correlations(locale)
+        for code, therapy in self.REQUIRED.items():
+            for name, data in catalogue.items():
+                if data["icd10"] != code:
+                    continue
+                pattern = self.THERAPY_PATTERNS[therapy]
+                assert any(pattern.search(medication) for medication in data["medications"]), f"{locale}: {code} ({name}) names a factor deficiency but prescribes no {therapy}: {data['medications']}"
+
+    def test_the_check_catches_the_pairing_it_was_written_for(self) -> None:
+        """Four of the shipped entry's five medications were another disease's."""
+        violations = self._violations(self.SHIPPED_DEFECT)
+        assert len(violations) == 4, violations
+        assert all("D68.311 (Hemophilia) is acquired haemophilia" in violation for violation in violations)
+
+    def test_the_patterns_recognise_the_spelling_every_locale_uses(self) -> None:
+        """Including the spellings no catalogue entry currently carries — `Fator IX` has
+        to stay recognisable, or removing the last factor IX entry would also remove the
+        check that stops it coming back under the wrong code."""
+        spellings = {
+            "factor VIII replacement": ("Factor VIII", "Fator VIII", "Faktor VIII", "因子VIII"),
+            "factor IX replacement": ("Factor IX", "Fator IX", "Faktor IX", "因子IX"),
+            "desmopressin": ("Desmopressin", "Desmopressina", "Desmopresina", "去氨加压素"),
+            "emicizumab": ("Emicizumab", "Emicizumabe", "艾美赛珠单抗"),
+        }
+        assert set(spellings) == set(self.THERAPY_PATTERNS), "every pattern needs its locale spellings listed"
+        unmatched = {therapy: [name for name in names if not self.THERAPY_PATTERNS[therapy].search(name)] for therapy, names in spellings.items()}
+        assert not any(unmatched.values()), f"patterns that miss a locale's spelling: { {k: v for k, v in unmatched.items() if v} }"
+
+    def test_factor_viii_and_factor_ix_are_never_the_same_match(self) -> None:
+        """The two patterns are one roman numeral apart, and a pattern that matched both
+        would make every haemophilia rule above simultaneously true and useless."""
+        assert not self.THERAPY_PATTERNS["factor IX replacement"].search("Factor VIII")
+        assert not self.THERAPY_PATTERNS["factor VIII replacement"].search("Factor IX")
+
+    def test_every_code_the_rules_name_is_accounted_for(self) -> None:
+        """Same bar as the correlation tables: a rule keyed by a typo protects nothing.
+        A code here is either shipped or a known gap — D67 and D68.311 are exactly the
+        entries this table exists to catch *before* somebody writes them."""
+        shipped = set(_icd10_counter("en_US"))
+        assert set(self.REQUIRED) <= set(self.INCOMPATIBLE)
+        assert set(self.INCOMPATIBLE) - shipped == {"D67", "D68.311"}, "a rule names a code that is neither shipped nor a recorded gap"
+        assert "D66" in shipped, "the haemophilia recode landed differently than these rules assume"
+
+
 class TestZhBrandCatalogue:
     """Same guarantee as the base catalogue, asserted over the whole shipped tuple.
 

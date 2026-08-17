@@ -176,6 +176,20 @@ the "N diseases" count in each module docstring.
   causes, `medications` must be treatments actually used for it, and
   `medical_specialty` must be the specialty that manages it. Two conditions may
   legitimately share an ICD-10 code (`Epilepsy` and `Seizure Disorder` → `G40.909`).
+- **The code and the medications must name the same disease entity**, not just be
+  correct one field at a time. `Hemophilia` shipped as `D68.311` — *acquired*
+  haemophilia, an autoimmune factor VIII inhibitor treated with immunosuppression and
+  bypassing agents — beside `["Factor VIII", "Factor IX", "Desmopressin",
+  "Antifibrinolytics", "Emicizumab"]`, which is congenital haemophilia A and B therapy;
+  emicizumab is licensed for "hemophilia A (congenital factor VIII deficiency)". The
+  whole suite passed on it, because every field was individually defensible. The
+  **acquired / hereditary** pair is the trap to watch: one clinical word, two codes far
+  apart in the classification (`D66` and `D67` are hereditary factor VIII and IX
+  deficiency, `D68.311` is the acquired form).
+  `tests/test_locales.py::TestDiseaseEntityCoherence` holds the rule as a table of codes
+  and the therapies belonging to another entity, over all six locales, and covers codes
+  the catalogue does not yet carry — so adding haemophilia B with factor VIII in it fails
+  CI rather than review. Extend the table when you meet the next such pair.
 - **Every symptom is a self-contained clinical term.** Never split one sentence across
   slots. Stress incontinence once read `["Urine Leakage with Coughing", "Sneezing",
   "Exercise", "Lifting", "Laughing"]`, so `symptom()` could return "Laughing" as a
@@ -276,8 +290,16 @@ The words live in the six `clinical_labels.py` files.
 - **Demographic constraints are locale-neutral and keyed by ICD-10 code.** "Female" is a
   fact about preeclampsia, not a word about it. Constrain only what is unambiguous, and
   when you decide *not* to constrain something that looks constrained, write down why —
-  the haemophilia entry's code is *acquired* haemophilia, which has no sex skew, and
-  sickle cell disease skews by ancestry, which this package does not model.
+  sickle cell disease skews by ancestry, which this package does not model, and
+  myocardial infarction skews male by a ratio that moves too much between populations to
+  state as one number.
+- **A demographic constraint is downstream of the code being right.** Haemophilia went
+  unweighted for a release because its code was `D68.311`, *acquired* haemophilia, which
+  affects both sexes; the X-linked male skew would have been a false fact under it. The
+  skew only became sourceable once the entry was corrected to `D66`. If you change a
+  condition's code, move the constraint keyed to it and re-derive its reasoning rather
+  than carrying it across — the age story changed here too, acquired haemophilia peaking
+  in the elderly and the postpartum where the congenital disease is present from birth.
 - **A demographic skew is weighted and sourced, never asserted as an absolute unless it
   genuinely is one.** There are three strengths available and the wrong one ships a false
   fact:

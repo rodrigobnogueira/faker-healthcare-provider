@@ -89,6 +89,23 @@ When you add or edit a disease:
 - The `icd10` must be the correct WHO ICD-10 code for that condition. Check it is the code for
   the condition you named, not a neighbouring one: rheumatoid arthritis shipped as `M79.1`
   (*Myalgia*, non-billable) for several releases before it was corrected to `M06.9`.
+- **The code and the medications must name the same disease entity**, not merely be
+  individually correct. `Hemophilia` shipped as `D68.311` — *acquired* haemophilia, an
+  autoimmune factor VIII inhibitor of the elderly and the postpartum, managed with
+  immunosuppression and bypassing agents — carrying `["Factor VIII", "Factor IX",
+  "Desmopressin", "Antifibrinolytics", "Emicizumab"]`, which is congenital haemophilia A
+  and B therapy. Emicizumab's FDA label says "hemophilia A (congenital factor VIII
+  deficiency)" in as many words. Every check in the suite passed on it: valid code, real
+  drugs, right specialty, matching counts in all six locales, correct Chinese equivalents
+  — because nothing asked whether the fields were about the same disease. Watch the
+  **acquired / hereditary** pair especially, where one clinical word covers two codes in
+  different parts of the classification: `D66` and `D67` are hereditary factor VIII and
+  factor IX deficiency, `D68.311` is the acquired form.
+  `tests/test_locales.py::TestDiseaseEntityCoherence` enforces this as a table of codes
+  and the therapies that belong to a *different* entity, checked in all six locales and
+  proved against the entry as it shipped. Extend that table when you meet the next such
+  pair; it already covers codes the catalogue does not yet carry, so a wrong `D67` entry
+  fails before it is reviewed.
 - `symptoms` must be symptoms that condition actually causes, and **each entry must be a
   self-contained clinical term**. Never split one sentence across slots: stress incontinence
   once read `["Urine Leakage with Coughing", "Sneezing", "Exercise", "Lifting", "Laughing"]`,
@@ -200,9 +217,16 @@ split applies: **numeric tables are locale-neutral, only words are translated.**
 - **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
   by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
   never copied into six catalogues. Constrain only what is unambiguous, and record the
-  reasoning for a condition you deliberately did NOT constrain (haemophilia's shipped code
-  is *acquired* haemophilia, which has no sex skew; sickle cell disease skews by ancestry,
-  which this package does not model).
+  reasoning for a condition you deliberately did NOT constrain (sickle cell disease skews
+  by ancestry, which this package does not model; myocardial infarction skews male by a
+  ratio that moves too much between populations to state as one number).
+- **A demographic constraint is downstream of the code being right.** Haemophilia went
+  unweighted for a release because its shipped code was `D68.311`, *acquired* haemophilia,
+  which affects both sexes — the X-linked male skew would have been a false fact under that
+  code. It only became sourceable once the entry was corrected to `D66`. When a code
+  changes, the constraint keyed to it moves with it and its reasoning is re-derived, not
+  carried across: the age story changed too, because acquired haemophilia peaks in the
+  elderly and the postpartum while the congenital disease is present from birth.
 - **A skew is weighted and sourced; it is never asserted as an absolute unless it is one.**
   The table offers three strengths and choosing the wrong one generates a false fact:
   - `sex` is an **absolute lock** — preeclampsia is female, full stop. Use it only where

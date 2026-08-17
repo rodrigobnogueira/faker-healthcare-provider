@@ -617,10 +617,12 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medications": ["Hidroxiureia", "Analgésicos", "Antibióticos", "Transfusões de sangue", "Voxelotor"],
         "medical_specialty": "Hematologia",
     },
-    "Hemofilia": {
-        "icd10": "D68.311",
+    # Haemophilia A (D66, hereditary factor VIII deficiency), recoded from D68.311, which
+    # is acquired haemophilia. The base catalogue carries the sourcing and the reason.
+    "Hemofilia A": {
+        "icd10": "D66",
         "symptoms": ["Sangramento prolongado", "Dor articular", "Equimoses", "Hemartrose", "Sangramento nasal"],
-        "medications": ["Fator VIII", "Fator IX", "Desmopressina", "Antifibrinolíticos", "Emicizumabe"],
+        "medications": ["Fator VIII", "Desmopressina", "Ácido tranexâmico", "Emicizumabe"],
         "medical_specialty": "Hematologia",
     },
     "Trombocitopenia": {
