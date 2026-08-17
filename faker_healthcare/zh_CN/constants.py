@@ -57,6 +57,23 @@ HOSPITAL_DEPARTMENTS: tuple[str, ...] = (
 # screening pass found real trademarks (诺华 = Novartis, 泰诺 = Tylenol, 泰康 = Taikang)
 # and ordinary words (康复 = "rehabilitation", 安乐 = the first half of "euthanasia").
 # Editing this pool changes nothing until the script is re-run.
+#
+# The eleven characters at the end were added on 2026-08-17, after the first reading pass
+# left only six shipped names: 康/泰/瑞/舒/益/欣 are recycled across so many marketed
+# Chinese products that most of their plausible pairs are already somebody's. Widening the
+# pool is the honest way to get more survivors — more candidates through the same screen —
+# rather than lowering the bar. Each addition is a character Chinese pharmaceutical brands
+# actually use (健康, 悦, 怡, 润, 通畅, 静, 明目, 朗, 恒, …灵, 顺). Only two of the eleven —
+# 润 and 灵 — actually produced shipped names; the other nine read as companies, given names,
+# places or efficacy claims in every pair that was read. They stay here with their rejections
+# recorded in the script's denylist, so the experiment is not repeated blind.
+#
+# Characters considered and deliberately left out, so the next reader does not re-litigate:
+# 睿, 立, 新/心 and 宜 are tonal homophones of 瑞, 力, 欣 and 怡, which are already here — a
+# homophone pair recreates every collision the original character has (睿康 sounds exactly
+# like 瑞康, a real pharmaceutical company). 沙/坦/汀/唑/林/霉/敏 close INN transliterations
+# (左氧氟沙星, 缬沙坦, 辛伐他汀, 阿莫西林, 扑尔敏) and belong with 素/维/尔/平/定 rather than
+# in a brand. 艾 (艾滋病 = AIDS), 春 (春药), 干 and 死/四 are excluded for what they read as.
 ZH_BRAND_CHARS: tuple[str, ...] = (
     "舒",
     "康",
@@ -90,6 +107,17 @@ ZH_BRAND_CHARS: tuple[str, ...] = (
     "元",
     "博",
     "诗",
+    "健",
+    "悦",
+    "怡",
+    "润",
+    "畅",
+    "静",
+    "明",
+    "朗",
+    "恒",
+    "灵",
+    "顺",
 )
 
 BLOOD_TYPES: tuple[str, ...] = ("A型Rh阳性", "A型Rh阴性", "B型Rh阳性", "B型Rh阴性", "AB型Rh阳性", "AB型Rh阴性", "O型Rh阳性", "O型Rh阴性")

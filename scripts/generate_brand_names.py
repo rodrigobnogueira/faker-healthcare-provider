@@ -439,14 +439,14 @@ REVIEWED_LATIN_NAMES: tuple[str, ...] = (
 # --------------------------------------------------------------------------------------
 # The zh_CN path.
 #
-# zh_CN overrides brand_drug() to prepend an invented 2-3 character Chinese name, which
-# is 30,752 more unscreened identifiers. The same fix applies — screen a set small enough
+# zh_CN's brand_drug() used to prepend an invented 2-3 character Chinese name built at call
+# time, which was 30,752 more unscreened identifiers. The same fix applies — screen a set small enough
 # to read, and ship that — with the same two-stage shape as the Latin side: mechanical
 # screens, then a reading pass whose verdicts are recorded here. The difference from the
 # Latin list is what the reading pass could not do, and the generated module says so
 # rather than leaving the reader to assume parity between the two.
 # --------------------------------------------------------------------------------------
-ZH_REVIEW_STATUS = "read one by one in Simplified Chinese on 2026-08-16 against the criteria below"
+ZH_REVIEW_STATUS = "read one by one in Simplified Chinese on 2026-08-16 and again on 2026-08-17"
 
 # Characters that read as a GENERIC drug marker rather than as part of a brand name. This
 # is the Chinese counterpart of BRAND_FORBIDDEN_ENDINGS, and it rejects a name for the
@@ -460,9 +460,12 @@ ZH_GENERIC_MORPHEMES: dict[str, str] = {
     "定": "reads as a substance: 安定 is diazepam, 可乐定 is clonidine, 可定 is a marketed statin",
 }
 
-# APPEND-ONLY, same rule as REAL_PRODUCT_DENYLIST. Two-character names reachable from
-# ZH_BRAND_CHARS that are real trademarks, company names, or ordinary Chinese words that
-# would read as a real term rather than an invented brand.
+# APPEND-ONLY, same rule as REAL_PRODUCT_DENYLIST. Every two-character name reachable from
+# ZH_BRAND_CHARS that a reading pass has rejected, whatever the reason it was rejected for:
+# a real trademark or company, a place, a name people are called, an ordinary word, an
+# efficacy claim, or a pair that simply does not read as an invented brand. The reason is
+# beside the entry, because the reasons are what a later reviewer needs; the entry itself
+# only has to keep the name out.
 ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (
     "诺华",  # Novartis
     "泰诺",  # Tylenol (CN)
@@ -590,10 +593,413 @@ ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (
     "迪元",  # 元-final
     "通元",  # 元-final; also 通元针法, a named acupuncture technique
     "通欣",  # homophone of the first half of 通心络, a well-known marketed Chinese medicine
+    # Read one by one in Simplified Chinese on 2026-08-17, after the pool above was widened
+    # by eleven characters, because six shipped names is too thin to generate Chinese test
+    # data with: the same six Chinese halves repeat for every draw. 370 candidates were read
+    # this round — the 300 an even sample over first characters produces, plus every pair
+    # among the ten characters that survive in practice (复安宁舒恩欣迪达润灵). Twenty
+    # survived. The 337 that did not are below, each with its reason, and the shape of the
+    # rejections is the finding:
+    #
+    #   * The pool splits in two. 复/安/宁/舒/恩/欣/迪/达 and the new 润/灵 are CLINICAL
+    #     morphemes and make names that read as medicines. 康/泰/瑞/华/乐/佳/元/力/博/诗/施/
+    #     诺/通/清/和/可/益 and the new 悦/怡/明/朗/恒/顺/畅/静/健 are auspicious or corporate
+    #     morphemes, and they make company names, given names, places and efficacy claims
+    #     almost without exception. Nine of the eleven new characters yielded nothing. They
+    #     stay in the pool with their rejections recorded, so the next reviewer inherits the
+    #     evidence instead of re-running the experiment.
+    #   * Position matters as much as the character. 灵 is the suffix of 感冒灵 in second
+    #     position and of 亡灵 in first; 复 heads compound preparations (复方) and reads as
+    #     "do it again" when it trails; 安 trails the drug names everyone knows (胃复安) and
+    #     reads as a safety claim anywhere else.
+    #   * Reading the characters is not enough. 泰佳 is a homophone of 泰嘉 (a marketed
+    #     clopidogrel), 力宁 of 利宁 (a marketed lidocaine), 欣舒 of 心舒, 力朗 of 利郎 and
+    #     达灵 of 达令 ("darling").
+    #
+    # One name that was already shipping was withdrawn this round: 复安 is the tail of 胃复安,
+    # the household name for metoclopramide in China, which the first pass missed. That is
+    # what the append-only rule is for — the denylist grew and the withdrawal is recorded,
+    # rather than a shipped name quietly changing meaning.
+    # 乐
+    "乐健",  # reads as a wellness slogan (乐享健康); used by real health-and-fitness businesses
+    "乐博",  # 乐博乐博, a national children's robotics-education brand
+    "乐宁",  # 乐宁教育, a Shanghai English-school chain
+    "乐恩",  # reads as a transliterated given name (Leon)
+    "乐朗",  # reads as a given name
+    "乐清",  # 乐清市, a city in Zhejiang
+    "乐益",  # 益 reads as an efficacy claim
+    "乐达",  # generic company-name reading
+    # 佳
+    "佳健",  # reads as a health claim, not a name
+    "佳可",  # 可-final does not read as a Chinese brand
+    "佳安",  # transposition of the denied 安佳 (Anchor); also reads as a safety claim
+    "佳悦",  # 佳悦酒店, a hotel brand; also a common given name
+    "佳泰",  # common company name
+    "佳灵",  # common female given name
+    "佳舒",  # 佳 reads as a quality claim in first position, so the pair is a slogan
+    "佳迪",  # reads as a transliterated foreign name
+    # 健
+    "健元",  # 健康元 (Joincare), a listed pharmaceutical group
+    "健可",  # 可-final
+    "健康",  # the ordinary word 'health'
+    "健悦",  # reads as a gym or wellness brand
+    "健泰",  # common company name
+    "健特",  # 健特药业 (无锡健特), a real pharmaceutical company
+    "健舒",  # 健 heads TCM function terms (健脾/健胃), so the pair reads as a claim
+    "健通",  # 健-initial claim reading, and 通 is a function verb too
+    # 元
+    "元华",  # 元华, a well-known Hong Kong actor
+    "元复",  # reversal of the denied 复元 ('recuperate'); reads as neither word nor brand
+    "元怡",  # reads as a personal name
+    "元明",  # 元明粉 is a real substance (mirabilite)
+    "元润",  # reads as a personal name or an investment firm
+    "元瑞",  # company-name reading
+    "元诺",  # 诺 is the morpheme multinationals take in Chinese
+    "元静",  # reads as a female given name
+    # 力
+    "力博",  # reads as an industrial company name
+    "力宁",  # homophone of 利宁, a marketed lidocaine brand
+    "力恒",  # generic company-name reading
+    "力朗",  # homophone of 利郎, a well-known menswear brand
+    "力清",  # reads as a personal name
+    "力畅",  # reads as a functional claim
+    "力达",  # extremely common company name
+    "力顺",  # generic company-name reading
+    # 华
+    "华佳",  # 华 heads a dozen denied company names; reads as one more
+    "华和",  # company-name reading
+    "华康",  # 华康字体 (DynaFont) and 华康 pharmacies
+    "华悦",  # hotel and real-estate brand
+    "华朗",  # company-name reading
+    "华灵",  # company or personal-name reading
+    "华诺",  # 华诺生物; 诺 is the multinationals' morpheme
+    "华通",  # 华通线缆, a listed company
+    # 博
+    "博佳",  # 博 reads as 博士/广博, a corporate morpheme
+    "博和",  # 博和汉商, a law firm
+    "博康",  # 博康医药
+    "博悦",  # gaming and hotel brand
+    "博欣",  # company-name reading
+    "博灵",  # reads as neither a word nor a brand
+    "博舒",  # 博 is a corporate morpheme, not a pharmaceutical one
+    "博迪",  # reads as a transliteration (Bodhi/Body)
+    # 可
+    "可元",  # 可-initial reads as an imported product; 元-final reads as the currency unit
+    "可宁",  # 可 opens transliterated imports (可定, 可乐定)
+    "可恒",  # 可 opens transliterated imports
+    "可明",  # 可 opens transliterated imports; also a personal name
+    "可泽",  # 可 opens transliterated imports; 泽 is a given-name character
+    "可瑞",  # 可瑞达 is pembrolizumab (Keytruda) in China
+    "可诺",  # 可 opens transliterated imports; 诺 is the multinationals' morpheme
+    "可静",  # reads as a female given name
+    # 和
+    "和元",  # 和元生物, a listed CDMO
+    "和宁",  # ordinary word; also a historic era name
+    "和恒",  # company-name reading
+    "和朗",  # reads as neither a word nor a brand
+    "和润",  # 光明和润, a marketed yoghurt line
+    "和畅",  # 惠风和畅, a line from 兰亭集序
+    "和诺",  # 诺 is the multinationals' morpheme
+    "和顺",  # ordinary word; also 和顺县, Shanxi
+    # 复
+    "复安",  # the tail of 胃复安, the household name for metoclopramide in China
+    "复乐",  # fragment of 拜复乐 (moxifloxacin, Avelox in China)
+    "复华",  # 复华集团
+    "复康",  # reversal of the denied 康复 ('rehabilitation')
+    "复悦",  # 悦 reads as a hospitality/wellness morpheme, not a pharmaceutical one
+    "复益",  # 益 reads as an efficacy claim
+    "复达",  # fragment of 复达欣 (ceftazidime, Fortum in China)
+    "复润",  # reads as a cosmetic claim ('restore moisture')
+    # 宁
+    "宁佳",  # 佳-final reads as a given name
+    "宁华",  # company-name reading
+    "宁康",  # reads as a pharmacy name
+    "宁悦",  # 悦 reads as a hospitality/wellness morpheme
+    "宁欣",  # common female given name
+    "宁灵",  # with 宁 = 'to pacify', 灵 reads as 亡灵 — a funerary reading
+    "宁益",  # reversal of the denied 益宁; 益 reads as an efficacy claim
+    "宁复",  # reads as the classical 宁复…, not as a brand
+    "宁润",  # reads as a 润肺宁咳 claim
+    # 安
+    "安力",  # company-name reading
+    "安和",  # ordinary phrase; also 安和路 in Taipei and the song 安和桥
+    "安恒",  # 安恒信息, a listed cybersecurity company
+    "安明",  # reads as a personal name
+    "安特",  # fragment of 安特尔 (testosterone undecanoate, Andriol)
+    "安益",  # 益 reads as an efficacy claim
+    "安静",  # the ordinary word 'quiet'
+    "安复",  # 复-final reads as 'do it again', not as a brand
+    "安舒",  # reads as a comfort-and-safety claim
+    "安恩",  # reads as a transliterated Western given name (安恩和奶牛)
+    "安灵",  # funerary reading — 安灵 is laying a spirit to rest
+    # 康
+    "康健",  # ordinary word ('in good health')
+    "康怡",  # 康怡 is a Hong Kong district and a pharmacy name
+    "康悦",  # 人保康悦, a medical-insurance product line
+    "康泽",  # 康泽药业, a pharmacy chain
+    "康灵",  # 康 + 灵 is the canonical OTC-name shape on the most saturated character here
+    "康畅",  # reads as a laxative claim
+    "康达",  # 康达律师事务所 and 康达医疗
+    "康静",  # reads as a personal name
+    # 怡
+    "怡元",  # 元-final reads as the currency unit
+    "怡和",  # 怡和集团 (Jardine Matheson)
+    "怡恒",  # company-name reading
+    "怡明",  # reads as a personal name
+    "怡润",  # reads as a cosmetic or dairy name
+    "怡瑞",  # company-name reading
+    "怡诺",  # fragment of 怡诺思 (venlafaxine, Effexor in China)
+    "怡顺",  # company-name reading
+    # 恒
+    "恒乐",  # company-name reading
+    "恒力",  # 恒力集团, a Fortune Global 500 group
+    "恒复",  # reads as neither a word nor a brand
+    "恒恩",  # reads as a personal or devotional name
+    "恒朗",  # company-name reading
+    "恒清",  # reads as a personal name
+    "恒畅",  # reads as a claim ('constantly unobstructed')
+    "恒达",  # a very common company name
+    # 恩
+    "恩元",  # 元-final reads as the currency unit
+    "恩和",  # 恩和, a well-known town in Inner Mongolia
+    "恩康",  # pharmacy-name reading
+    "恩明",  # reads as a personal name
+    "恩瑞",  # company-name reading
+    "恩诗",  # 诗 is a transliteration morpheme; the pair reads foreign
+    "恩静",  # a common Korean given name
+    "恩复",  # 复-final reads as 'do it again'
+    "恩安",  # reads as a personal name
+    "恩宁",  # 恩宁路, a well-known historic street in Guangzhou
+    "恩迪",  # near-homophone of the denied 安迪 ('Andy')
+    "恩达",  # reads as a transliterated name; also a common trading-company name
+    "恩灵",  # Christian vocabulary (恩典 + 圣灵)
+    # 悦
+    "悦健",  # gym and wellness reading
+    "悦博",  # 悦博体育
+    "悦安",  # ordinary phrase
+    "悦施",  # 施 opens transliterated foreign companies
+    "悦泰",  # common company name
+    "悦特",  # transliteration fragment
+    "悦舒",  # comfort claim used by personal-care products
+    "悦通",  # company-name reading
+    # 施
+    "施佳",  # 施 opens transliterated foreign companies (施贵宝, 施维雅)
+    "施可",  # 可-final; 施 reads as a foreign company's initial
+    "施安",  # 施 reads as a foreign company's initial
+    "施恩",  # 施恩, an infant-formula brand; also the ordinary phrase 'bestow a kindness'
+    "施泰",  # 施 reads as a foreign company's initial
+    "施特",  # reads as a transliterated surname (施特劳斯)
+    "施舒",  # 施 reads as a foreign company's initial
+    "施迪",  # 施 reads as a foreign company's initial
+    # 明
+    "明力",  # company-name reading
+    "明和",  # 明和産業, a Japanese company
+    "明怡",  # reads as a personal name
+    "明朗",  # the ordinary word 'bright'
+    "明润",  # descriptive pair used for jade and cosmetics
+    "明畅",  # the ordinary word for lucid prose
+    "明诺",  # 明诺生物; 诺 is the multinationals' morpheme
+    "明顺",  # company-name reading
+    # 朗
+    "朗乐",  # company-name reading
+    "朗华",  # 朗华供应链
+    "朗复",  # reads as neither a word nor a brand
+    "朗恒",  # company-name reading
+    "朗欣",  # 朗欣科技
+    "朗清",  # water-purifier brand and personal-name reading
+    "朗益",  # 益 reads as an efficacy claim
+    "朗达",  # 朗达锂电
+    # 欣
+    "欣力",  # company-name reading
+    "欣和",  # 欣和食品 (Shinho), a major condiment maker
+    "欣怡",  # one of the most common female given names
+    "欣施",  # 施 reads as a foreign company's initial
+    "欣清",  # reads as a personal name
+    "欣畅",  # the ordinary word 欢畅/欣畅
+    "欣诺",  # 诺 is the multinationals' morpheme
+    "欣静",  # reads as a female given name
+    "欣复",  # 复-final; also homophone of 心腹
+    "欣安",  # homophone of 心安, 'at ease'
+    "欣宁",  # homophone of 心宁, which reads as a cardiac claim
+    "欣舒",  # homophone of 心舒; 心舒宝片 is a marketed cardiac TCM
+    "欣恩",  # reads as a given name
+    "欣润",  # reads as a cosmetic claim
+    "欣灵",  # 欣灵电气, a listed manufacturer
+    # 泰
+    "泰佳",  # homophone of 泰嘉, the marketed clopidogrel brand
+    "泰力",  # common company name
+    "泰安",  # 泰安市, Shandong
+    "泰恩",  # near-homophone of 泰能 (imipenem, Tienam)
+    "泰朗",  # reads as a transliterated name
+    "泰润",  # company-name reading
+    "泰畅",  # company and claim reading
+    "泰迪",  # 'Teddy' — the bear and the dog breed
+    # 泽
+    "泽乐",  # 泽 is a given-name character
+    "泽华",  # reads as a male given name
+    "泽复",  # reads as neither a word nor a brand
+    "泽恒",  # reads as a male given name
+    "泽明",  # reads as a male given name
+    "泽灵",  # reads as a personal name
+    "泽益",  # 益 reads as an efficacy claim
+    "泽达",  # 泽达易盛, a listed company
+    # 润
+    "润力",  # company-name reading
+    "润复",  # 复-final reads as 'do it again'
+    "润怡",  # reads as a cosmetic name
+    "润明",  # 润眼明目 claim; also a personal name
+    "润清",  # water-purifier brand
+    "润畅",  # 润肠通便 claim
+    "润达",  # 润达医疗, a listed IVD company
+    "润顺",  # company-name reading
+    "润安",  # reads as a claim
+    "润宁",  # reads as a 润肺宁咳 claim
+    "润舒",  # 润舒滴眼液 is a marketed chloramphenicol eye drop
+    "润恩",  # reads as a personal name
+    "润欣",  # 润欣科技, a listed company
+    "润迪",  # company-name reading
+    "润灵",  # reads as a TCM or cosmetic claim
+    # 清
+    "清健",  # 清 heads TCM function terms (清热健脾)
+    "清复",  # reads as neither a word nor a brand
+    "清怡",  # reads as a personal name
+    "清施",  # 施 reads as a foreign company's initial
+    "清泰",  # 清泰街, a Hangzhou thoroughfare
+    "清瑞",  # company-name reading
+    "清诺",  # 诺 is the multinationals' morpheme
+    "清静",  # the ordinary word 'serene'
+    # 灵
+    "灵佳",  # 灵-initial reads as 灵魂, not as the OTC suffix of 感冒灵
+    "灵博",  # 灵-initial reads as 灵魂
+    "灵安",  # funerary reading (安灵)
+    "灵恩",  # 灵恩派, the Charismatic movement
+    "灵欣",  # reads as a female given name
+    "灵特",  # transliteration fragment
+    "灵舒",  # 灵-initial reads as 灵魂
+    "灵通",  # the ordinary word 消息灵通; also 小灵通
+    "灵宁",  # funerary reading
+    "灵迪",  # 灵-initial reads as 灵魂
+    "灵达",  # 灵-initial; also a common company name
+    "灵复",  # 灵-initial; 复-final
+    "灵润",  # 灵-initial; reads as a cosmetic claim
+    # 特
+    "特佳",  # reads as 特效 + a quality claim
+    "特华",  # 特华投资
+    "特宁",  # 特 reads as 特效药, a claim
+    "特恒",  # company-name reading
+    "特朗",  # 特朗普 — Trump
+    "特润",  # 特润修护, a cosmetics line
+    "特诗",  # transliteration fragment
+    "特通",  # reads as neither a word nor a brand
+    # 瑞
+    "瑞健",  # 瑞健医疗
+    "瑞可",  # 可-final
+    "瑞怡",  # reads as a personal name
+    "瑞朗",  # company-name reading
+    "瑞泽",  # 泽 is a given-name character
+    "瑞特",  # 瑞特血糖仪, a marketed glucometer
+    "瑞诗",  # transliteration reading
+    "瑞顺",  # company-name reading
+    # 畅
+    "畅乐",  # 畅 is a function word, so 畅X reads as a claim
+    "畅力",  # reads as a claim
+    "畅复",  # reads as neither a word nor a brand
+    "畅恒",  # company-name reading
+    "畅明",  # reads as a claim or a personal name
+    "畅润",  # reads as a claim
+    "畅益",  # 益 reads as an efficacy claim
+    "畅达",  # the ordinary word 'unimpeded'
+    # 益
+    "益元",  # 益元散, a classical TCM formula
+    "益和",  # 益 reads as an efficacy claim
+    "益恒",  # company-name reading
+    "益明",  # 益气明目 claim
+    "益泽",  # 泽 is a given-name character
+    "益特",  # 益 reads as an efficacy claim
+    "益诺",  # 诺 is the multinationals' morpheme
+    "益顺",  # company-name reading
+    # 舒
+    "舒健",  # reads as a health claim
+    "舒博",  # 博 is a corporate morpheme
+    "舒宁",  # reads like a marketed sedative or hygiene name — not confident enough to ship
+    "舒朗",  # 舒朗服饰, a women's-wear brand; also an ordinary adjective
+    "舒润",  # transposition of 润舒, a marketed eye drop; also a marketing claim
+    "舒瑞",  # company-name reading
+    "舒通",  # claim reading, adjacent to the denied 通乐
+    "舒复",  # 复-final reads as 'do it again'
+    "舒安",  # reads as a comfort-and-safety claim
+    "舒欣",  # reads as a personal name (舒 is a surname, 欣 a given name)
+    # 诗
+    "诗乐",  # 诗 is a transliteration morpheme (诗华 = Ceva)
+    "诗力",  # 诗 is a transliteration morpheme
+    "诗宁",  # 诗 is a transliteration morpheme
+    "诗恒",  # reads as a personal name
+    "诗明",  # reads as a personal name
+    "诗润",  # reads as a cosmetic name
+    "诗瑞",  # transliteration reading
+    "诗迪",  # transliteration reading
+    # 诺
+    "诺元",  # 诺 is the multinationals' morpheme; 元-final reads as the currency unit
+    "诺复",  # 诺 is the multinationals' morpheme
+    "诺怡",  # 诺 is the multinationals' morpheme
+    "诺明",  # reads as a personal name
+    "诺泽",  # 泽 is a given-name character
+    "诺特",  # transliteration reading
+    "诺舒",  # 诺 is the multinationals' morpheme
+    "诺顺",  # company-name reading
+    # 达
+    "达元",  # 元-final reads as the currency unit
+    "达可",  # 可-final; also the head of 达可替尼 (dacomitinib)
+    "达康",  # 李达康, a household-name television character
+    "达明",  # 达明一派, a famous Hong Kong band
+    "达泽",  # 泽 is a given-name character
+    "达特",  # 'Dart'; transliteration fragment
+    "达舒",  # fragment of 斯达舒, a very well-known OTC stomach medicine
+    "达顺",  # company-name reading
+    "达复",  # 复-final reads as 'do it again'
+    "达宁",  # may collide with a marketed analgesic — not confident enough to ship
+    "达欣",  # fragment of 复达欣 (ceftazidime, Fortum)
+    "达迪",  # reads as the English 'daddy'
+    "达润",  # transposition of 润达医疗, a listed company
+    "达灵",  # near-homophone of 达令, 'darling'
+    # 迪
+    "迪健",  # reads as a fitness brand
+    "迪可",  # 可-final
+    "迪怡",  # reads as a cosmetic or personal name
+    "迪明",  # reads as a personal name
+    "迪畅",  # reads as a claim
+    "迪达",  # 阿迪达斯 (Adidas) contains 迪达
+    "迪复",  # 复-final reads as 'do it again'
+    "迪恩",  # 'Dean', a common transliterated name
+    # 通
+    "通健",  # 通 and 健 are both function verbs, so the pair reads as a claim
+    "通可",  # 可-final
+    "通康",  # reads as a pharmacy name
+    "通施",  # 施 reads as a foreign company's initial
+    "通润",  # 润肠通便 claim
+    "通畅",  # the ordinary word 'unobstructed'
+    "通达",  # ordinary word; also 通达系, the express-delivery group
+    # 静
+    "静力",  # 静力学, a physics term
+    "静复",  # reads as neither a word nor a brand
+    "静恒",  # reads as a personal name
+    "静欣",  # reads as a female given name
+    "静灵",  # 静灵口服液, a marketed children's TCM
+    "静舒",  # reads as a female given name
+    "静顺",  # reads as neither a word nor a brand
+    # 顺
+    "顺乐",  # 顺-initial reads as a logistics brand (顺丰)
+    "顺华",  # company-name reading
+    "顺宁",  # 顺宁, the former name of 凤庆县, Yunnan
+    "顺恩",  # reads as a personal name
+    "顺泰",  # common company name
+    "顺特",  # 顺特电气
+    "顺诗",  # 诗 is a transliteration morpheme
 )
 
-# The reviewed Chinese sample: what that pass left standing. Six names, and the smallness
-# is the point — a short list somebody has actually read beats a long one nobody has.
+# The reviewed Chinese sample: what those passes left standing. Six names came out of the
+# 64 candidates the 2026-08-16 pass read, one of which (复安) was withdrawn on 2026-08-17;
+# twenty more came out of the 370 candidates the 2026-08-17 pass read.
 #
 # Each survivor is a pair that is not a word, not a name people are called, not a place,
 # not recognisable as a company or a product, does not read as a substance, and still
@@ -601,15 +1007,41 @@ ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (
 # search a trademark register, so none of this establishes that a survivor is unregistered
 # — see the generated module's docstring, which says so to the reader.
 #
+# Twenty-five is short of what a Chinese-language user would want, and it is where honest
+# screening landed rather than a target: the second pass read 370 candidates to add twenty,
+# a 5% survival rate, because the region of the space that reads like a Chinese drug brand
+# is the region real manufacturers have already occupied. Growing this list further needs
+# more CLINICAL characters in ZH_BRAND_CHARS (see the denylist header) or a reviewer with
+# native fluency, not a longer sample of the same pool.
+#
 # To grow the list, run `--propose-zh N`, read the candidates against those criteria, and
 # append the survivors here. Never append one nobody has read, and re-run the script.
 REVIEWED_ZH_NAMES: tuple[str, ...] = (
-    "复安",
+    "复宁",
+    "复恩",
+    "复欣",
+    "复灵",
+    "复舒",
+    "复迪",
+    "宁恩",
     "宁舒",
+    "宁达",
+    "宁迪",
+    "安润",
     "恩欣",
-    "达恩",
-    "迪欣",
+    "恩润",
+    "恩舒",
+    "欣达",
+    "欣迪",
+    "舒恩",
+    "舒灵",
     "舒迪",
+    "达恩",
+    "迪宁",
+    "迪欣",
+    "迪润",
+    "迪灵",
+    "迪舒",
 )
 
 
@@ -690,10 +1122,18 @@ def latin_space() -> list[str]:
 def zh_space() -> list[str]:
     """Every two-character Chinese name the pool can produce, sorted.
 
-    The runtime generator also produced three-character names; two characters is the
-    shape Chinese pharmaceutical brands overwhelmingly take, and restricting to it drops
-    the space from 30,752 to 992 before any screen runs, which is the difference between
-    a set a reviewer can read and one they cannot.
+    Two characters is the shape Chinese pharmaceutical brands overwhelmingly take, and it
+    keeps the space at the n*(n-1) ordered pairs of an n-character pool rather than the
+    tens of thousands the old two-and-three-character runtime generator produced — the
+    difference between a set a reviewer can read and one they cannot.
+
+    Two other shapes were considered on 2026-08-17 and left out. Three-character names are
+    a real Chinese brand shape (感冒灵, 优甲乐, 拜复乐), but they multiply the space by the
+    pool size again and they read MORE like a specific marketed product, not less, so they
+    raise the collision risk exactly where nobody can check it. Reduplication (安安) is not
+    a pharmaceutical shape in Chinese at all, which is why `screen_zh` rejects a repeated
+    character. Widening happens through the character pool instead, where every added
+    candidate goes through the same reading pass.
     """
     return sorted(first + second for first in ZH_BRAND_CHARS for second in ZH_BRAND_CHARS if first != second)
 
@@ -831,19 +1271,27 @@ def render_zh(names: list[str]) -> str:
         "drug rather than as a brand (``ZH_GENERIC_MORPHEMES``); and against every Chinese\n"
         "term this package ships.\n\n"
         "**Review status.** Every candidate was\n"
-        f"{ZH_REVIEW_STATUS}: does the pair\n"
+        f"{ZH_REVIEW_STATUS},\n"
+        "against the criteria below: does the pair\n"
         "name a real company or product, does it read as an ordinary word, a personal name\n"
         "or a place, does it read as a substance rather than a brand, and does it read as a\n"
-        "plausible invented brand at all. That pass rejected 58 of the 64 names this module\n"
-        "used to ship; each rejection is recorded, with its reason, in the screens in\n"
-        "``scripts/generate_brand_names.py``. Six survived, and the list is short because\n"
-        "the review was strict, not because the space is.\n\n"
-        "What that pass was NOT: a trademark search - no register was consulted, and none\n"
+        "plausible invented brand at all.\n\n"
+        "The first pass read 64 candidates and rejected 58. The second widened the character\n"
+        "pool and read 370 more - an even sample across first characters, plus every pair\n"
+        "among the ten characters that survive in practice - rejected 337 of them, and\n"
+        "withdrew one of the six names the first pass had shipped (复安, the tail of 胃复安,\n"
+        "the household name for metoclopramide in China). Every rejection is recorded, with\n"
+        f"its reason, in ``scripts/generate_brand_names.py``, and {len(names)} names ship.\n\n"
+        "That number is where honest screening landed, not a target: the second pass read\n"
+        "370 candidates to add 20. The region of this space that reads like a Chinese drug\n"
+        "brand is the region real manufacturers have already occupied, so a stricter-sounding\n"
+        "name is usually a likelier collision.\n\n"
+        "What those passes were NOT: a trademark search - no register was consulted, and none\n"
         "of these names is claimed to be unregistered - and not a fluent native speaker's\n"
-        "sign-off, which this repository has not received and does not claim. Chinese\n"
-        "pharmaceutical brands recycle these characters so heavily that a collision is\n"
-        "likelier here than in the Latin catalogue. Reports of one are welcome and land in\n"
-        "ZH_REAL_PRODUCT_DENYLIST, which is append-only.\n",
+        "sign-off, which this repository has not received and does not claim. They are an LLM\n"
+        "reading pass. Chinese pharmaceutical brands recycle these characters so heavily that\n"
+        "a collision is likelier here than in the Latin catalogue. Reports of one are welcome\n"
+        "and land in ZH_REAL_PRODUCT_DENYLIST, which is append-only.\n",
         "ZH_BRAND_NAMES",
         "tuple[str, ...]",
         names,

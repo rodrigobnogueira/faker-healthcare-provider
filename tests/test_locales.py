@@ -961,3 +961,96 @@ class TestZhBrandCatalogue:
 
         offenders = [name for name in ZH_BRAND_NAMES if not set(name) <= set(ZH_BRAND_CHARS)]
         assert offenders == []
+
+    def test_no_shipped_name_is_on_the_denylist(self) -> None:
+        """The screen already covers this; asserting it separately says why it matters.
+
+        `screen_zh` rejects a denylisted name, so a shipped name can only appear on the
+        denylist if somebody hand-edited the generated module — which the `--check` test
+        would also catch, but with a diff instead of a name.
+        """
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        generator = load_brand_name_generator()
+        denied = set(generator.ZH_REAL_PRODUCT_DENYLIST)
+        assert [name for name in ZH_BRAND_NAMES if name in denied] == []
+
+    def test_every_denylist_entry_is_reachable_from_the_character_pool(self) -> None:
+        """A denylisted name the pool cannot produce screens nothing.
+
+        It is not harmful, but it is almost always a typo — a character that looks like a
+        pool character and is not — and the entry then silently stops protecting the name
+        it was added for.
+        """
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_CHARS
+
+        generator = load_brand_name_generator()
+        pool = set(ZH_BRAND_CHARS)
+        offenders = [name for name in generator.ZH_REAL_PRODUCT_DENYLIST if not set(name) <= pool]
+        assert offenders == []
+
+    def test_every_denylist_entry_has_a_recorded_reason(self) -> None:
+        """The reasons are the durable half of a reading pass, so they are enforced.
+
+        A bare entry keeps one name out; an entry with a reason tells the next reviewer
+        what the pattern was, which is what stopped 58 names in 2026-08-16 and 337 more in
+        2026-08-17 from having to be re-derived.
+        """
+        source = (Path(__file__).resolve().parent.parent / "scripts" / "generate_brand_names.py").read_text(encoding="utf-8")
+        block = source.split("ZH_REAL_PRODUCT_DENYLIST: tuple[str, ...] = (", 1)[1].split("\n)", 1)[0]
+        unexplained = [line.strip() for line in block.splitlines() if line.strip().startswith('"') and "#" not in line]
+        assert unexplained == []
+
+    def test_the_2026_08_16_rejections_are_still_rejected(self) -> None:
+        """The reading passes only compound if their verdicts cannot be undone.
+
+        These are the 64 names the module shipped before the 2026-08-16 reading pass, taken
+        from that commit. Fifty-eight were rejected then and one more (复安) in 2026-08-17,
+        so every name here is either still shipped or still refused by a screen — a pool or
+        denylist edit that re-admitted one would fail here rather than in a release.
+        """
+        candidates = (
+            "乐佳 乐欣 佳元 佳欣 元力 元泰 力华 力泽 华可 华益 博可 博清 可复 可益 和复 和素 "
+            "复安 复维 宁定 宁舒 安元 安欣 定尔 定诗 尔平 尔达 平施 平迪 康可 康益 恩乐 恩欣 "
+            "施力 施泽 欣元 欣泽 泰定 泰舒 泽力 泽清 清可 清益 特可 特益 瑞施 瑞通 益宁 益维 "
+            "素复 素维 维宁 维舒 舒康 舒迪 诗平 诗达 诺恩 诺通 达恩 达通 迪元 迪欣 通元 通欣"
+        ).split()
+        assert len(candidates) == 64
+
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        generator = load_brand_name_generator()
+        catalogue = generator.catalogue_terms(("zh_CN",))
+        still_shipped = [name for name in candidates if name in ZH_BRAND_NAMES]
+        assert sorted(still_shipped) == sorted(["宁舒", "恩欣", "舒迪", "达恩", "迪欣"])
+
+        readmitted = [name for name in candidates if name not in ZH_BRAND_NAMES and not generator.screen_zh(name, catalogue)]
+        assert readmitted == []
+
+    def test_the_shipped_list_is_wide_enough_to_be_worth_generating(self) -> None:
+        """zh_CN composites are (Chinese half) x (Latin half), and only the halves are pinned.
+
+        The Latin half has always had 245 entries, so the composite count looks large however
+        thin the Chinese half is: with six Chinese names it was 1,470 composites drawn from
+        six Chinese pairs, and a user generating Chinese data saw the same six over and over.
+        This pins the number that actually varies. It is a floor, not the current count, so
+        adding reviewed names does not fail it — but withdrawing one silently will.
+        """
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        assert len(ZH_BRAND_NAMES) >= 25
+
+    def test_draws_cover_every_shipped_chinese_half(self) -> None:
+        """No shipped Chinese name may be unreachable through the provider.
+
+        Asserted over the whole tuple rather than a coverage fraction: the list is small
+        enough that 2,000 draws exhaust it, so anything missing is unreachable, not unlucky.
+        """
+        from faker_healthcare.zh_CN import Provider
+        from faker_healthcare.zh_CN.constants import ZH_BRAND_NAMES
+
+        fake = Faker("zh_CN")
+        fake.add_provider(Provider)
+        fake.seed_instance(20260817)
+        halves = {fake.brand_drug().split(" ", 1)[0] for _ in range(2000)}
+        assert halves == set(ZH_BRAND_NAMES)

@@ -419,16 +419,34 @@ screens of its own: `ZH_REAL_PRODUCT_DENYLIST` (append-only, a reason per entry)
 `ZH_GENERIC_MORPHEMES`, the Chinese counterpart of the INN-stem screen — a name containing
 素/维/尔/平/定 reads as a *substance* (维生素, 美托洛尔, 氨氯地平, 安定 = diazepam), not as a brand.
 
-The 64 names that module used to ship were read one by one in Simplified Chinese on
-**2026-08-16** and 58 were rejected — real companies and products, ordinary words, personal
-names, and pairs that do not read as a brand at all. Six survived. That is the honest yield
-in a morpheme space this saturated: with 康/泰/瑞/舒/益/欣 recycled across so many marketed
-products, the candidates that sound most like a real Chinese drug brand are the likeliest to
-be one. The module states what the pass was **and what it was not** — no trademark register
-was searched, and no fluent native speaker's sign-off is recorded — so do not describe it as
-one. If you read Chinese, a second pass is genuinely useful: rejections go to
+Two reading passes have run. **2026-08-16** read the 64 names the module then shipped and
+rejected 58 — real companies and products, ordinary words, personal names, and pairs that do
+not read as a brand at all — leaving six. Six Chinese halves is too thin to generate Chinese
+data with, so **2026-08-17** widened `ZH_BRAND_CHARS` by eleven characters and read 370 more
+candidates against the same criteria: 20 survived, 337 are on the denylist with a reason
+each, and one name that was already shipping was withdrawn (`复安`, the tail of 胃复安, the
+household name for metoclopramide). **25 ship.**
+
+That is the honest yield in a morpheme space this saturated, and the shape of the rejections
+is worth knowing before you add a character to the pool:
+
+- **The pool splits in two.** 复/安/宁/舒/恩/欣/迪/达/润/灵 are *clinical* morphemes and make
+  names that read as medicines. 康/泰/瑞/华/乐/佳/元/力/博/诗/施/诺/通/清/和/可/益 — and the
+  auspicious characters added in 2026-08-17 (悦/怡/明/朗/恒/顺/畅/静/健) — make company names,
+  given names, places and efficacy claims almost without exception. Nine of the eleven new
+  characters yielded nothing and stay in the pool with their rejections recorded.
+- **Position matters as much as the character.** 灵 is the suffix of 感冒灵 in second position
+  and of 亡灵 in first; 复 heads compound preparations and reads as "do it again" when it
+  trails; 安 trails the drug names everyone knows (胃复安) and is a safety claim anywhere else.
+- **Reading the characters is not enough.** 泰佳 is a homophone of 泰嘉 (a marketed clopidogrel),
+  力宁 of 利宁 (a marketed lidocaine), 达灵 of 达令 ("darling"), 力朗 of 利郎.
+
+The module states what the passes were **and what they were not** — an LLM reading pass, no
+trademark register searched, no fluent native speaker's sign-off recorded — so do not
+describe them as one. If you read Chinese, another pass is genuinely useful: rejections go to
 `ZH_REAL_PRODUCT_DENYLIST` with the reason, additions go to `REVIEWED_ZH_NAMES` only after
-you have read them, and then re-run the script.
+you have read them, and then re-run the script. Growing the list further most likely needs
+more *clinical* characters in the pool, not a longer sample of the same one.
 
 ### Any other generated identifier follows the same rule
 
