@@ -72,6 +72,7 @@ from .types import DemographicConstraint, Direction, Flag, LabDefinition, Sex, V
 
 __all__ = [
     "ADULT_AGE_RANGE",
+    "AGE_BAND_RESOLUTION",
     "ALCOHOL_CATEGORY_THRESHOLDS",
     "ALCOHOL_HIGHEST_CATEGORY",
     "ALCOHOL_UNIT_GRAMS",
@@ -94,9 +95,12 @@ __all__ = [
     "SEVERITY_RESOLUTION",
     "SEVERITY_TIERS",
     "SEXES",
+    "SEX_PROBABILITY_RESOLUTION",
     "VITAL_DEFINITIONS",
+    "age_bands_for",
     "age_range_for",
     "alcohol_category_key",
+    "declared_age_range",
     "flag_for",
     "from_steps",
     "is_paediatric_only",
@@ -322,24 +326,54 @@ ADULT_AGE_RANGE = (18, 110)
 # and age are not translatable. "Female" is a fact about the condition, not a word about
 # it, so it cannot live in six catalogues where five copies could fall behind the sixth.
 #
-# Each entry states only what it knows (`DemographicConstraint` has no required keys):
-#   * `sex` — the condition occurs only in that anthropometric class;
+# Each entry states only what it knows (`DemographicConstraint` has no required keys),
+# and it states it at the strength the evidence supports:
+#   * `sex` — an absolute lock: the condition occurs only in that anthropometric class;
+#   * `female_probability` — a weighting: the share of patients who are female, for a
+#     condition that is skewed but not locked. Mutually exclusive with `sex`, because a
+#     weight of 0 or 1 IS a lock and belongs in `sex`;
 #   * `min_age` / `max_age` — inclusive bounds on a plausible patient's age, not on the
-#     age at diagnosis and not a hard clinical limit.
+#     age at diagnosis and not a hard clinical limit. The draw inside them is uniform;
+#   * `age_bands` — `(share, lowest, highest)` triples replacing those bounds with a
+#     shape, for a condition whose real age distribution is nothing like uniform. Shares
+#     are percentages summing to 100, the bands are contiguous and ascending, and the
+#     draw is uniform within the band that wins.
 #
-# The bar is the same as everywhere else: constrain only what is unambiguous. A condition
-# with no entry can occur in anyone, which is an honest default.
+# The bar is the same as everywhere else: constrain only what is unambiguous, and SOURCE
+# whatever you skew. Every weight and every band below names the figure it came from; a
+# skew nobody can cite does not belong here. A condition with no entry can occur in
+# anyone at any age, which is an honest default and is still what most of the catalogue
+# gets. The published figures used here are mostly US national statistics — that is where
+# this kind of number is reported most consistently — and they are not claims about the
+# age or sex structure of any particular country's clinic population.
 #
-# Deliberately absent, as worked examples of the bar:
-#   * Q24.9 (congenital heart disease) is NOT paediatric-only. Most of it is diagnosed in
-#     infancy, but adults with congenital heart disease now outnumber children — a whole
-#     specialty (ACHD) exists for them — so a ceiling here would generate a false fact;
-#   * C50.919 (breast cancer) is NOT female-only. Male breast cancer is about 1% of
-#     cases; pinning `sex` would make the package unable to generate a real patient
-#     group;
-#   * E84.9 (cystic fibrosis) is likewise no longer paediatric: median predicted survival
-#     is now in the fifth decade, and adults are the majority of the CF population.
+# Why the middle strength exists at all. For one release this table was binary: a
+# condition was either locked or free, and three conditions were correctly refused a lock
+# on medical grounds — which left them free, and free was measurably wrong. Breast cancer
+# generated 49% male patients against a real figure under 1%, a fifty-fold error and a
+# worse defect than the male-preeclampsia bug the table was built to fix. "Female, full
+# stop" would have been wrong in the other direction: men with breast cancer are a real
+# patient group who need to appear in test data. A sourced weight is the answer to both,
+# and the same argument applies to age: cystic fibrosis drawing uniformly to 100 was not
+# a neutral default, it was a claim, and a wrong one.
+#
+# Deliberately absent or deliberately unweighted, as worked examples of the bar:
+#   * D68.311 (haemophilia): the code shipped here is *acquired* haemophilia — an
+#     autoimmune inhibitor disorder, mostly of older adults, affecting both sexes — so
+#     the near-total male skew of X-linked haemophilia would be a wrong fact under this
+#     code. The catalogue's medications for the condition (factor VIII, factor IX,
+#     emicizumab) read like congenital haemophilia A/B, which is D66/D67. That
+#     contradiction has to be settled in the catalogue before any sex weight here can be
+#     sourced, and asserting one now would silently pick a side;
+#   * D57.1 (sickle cell disease): its strong skew is by ancestry, which this package
+#     does not model at all, and not by sex or age;
+#   * I21.9 (myocardial infarction), I63.9 (stroke), C34.90 (lung cancer): each skews
+#     male, old, or both, but by ratios that move so much between populations and decades
+#     that no single number would be honest;
+#   * every other condition keeps the uniform 0-100 draw, including adult-onset ones
+#     where an age floor would be reasonable. Adding one means sourcing it.
 DEMOGRAPHIC_CONSTRAINTS: dict[str, DemographicConstraint] = {
+    # ---- Locked, because these genuinely are absolutes. ----
     # Female-only. The four with an upper bound are bounded by reproductive age rather
     # than by the condition: an endometriosis diagnosis can persist past the menopause,
     # but a *new* patient generated for it is of reproductive age.
@@ -358,10 +392,84 @@ DEMOGRAPHIC_CONSTRAINTS: dict[str, DemographicConstraint] = {
     # `patient_record()` refuses to build an adult record around them.
     "J05.0": {"max_age": 5},  # Croup (typically 6 months to 3 years)
     "J21.9": {"max_age": 2},  # Bronchiolitis (under 2 by definition)
-    # An age floor rather than a paediatric ceiling: early-onset Alzheimer's disease is
-    # defined by onset before 65 and is vanishingly rare below the mid-forties.
-    "G30.9": {"min_age": 45},  # Alzheimer's disease
+    # ---- Weighted: strongly skewed, but a lock would be a false absolute. ----
+    # Male breast cancer is under 1% of all breast cancers (American Cancer Society, Key
+    # Statistics for Breast Cancer in Men), so 0.99 female rather than female-only. The
+    # age shape uses the two figures ACS publishes for the female disease — about 10% of
+    # cases diagnosed before 45, and half of women 62 or younger at diagnosis — which
+    # puts the generated median on 62 instead of on the midpoint of a uniform draw. The
+    # floor is 20 because SEER's age-at-diagnosis table starts there and rounds the
+    # under-20 share to zero.
+    "C50.919": {"female_probability": 0.99, "age_bands": ((10, 20, 44), (40, 45, 62), (50, 63, 100))},  # Breast cancer
+    # About 8 of the 10 million Americans with osteoporosis are women (Bone Health &
+    # Osteoporosis Foundation, Osteoporosis Fast Facts). M81.0 is *age-related*
+    # osteoporosis specifically, and the densitometric criterion it is diagnosed by is
+    # defined for postmenopausal women and for men aged 50 and over — hence the floor.
+    "M81.0": {"female_probability": 0.80, "min_age": 50},  # Age-related osteoporosis
+    # NHANES 2015-2016 found gout in 5.2% of men and 2.7% of women (Chen-Xu et al.,
+    # Arthritis Rheumatol 2019), leaving women about a third of prevalent cases. Gout
+    # under 30 is rare enough that it usually points at an inherited enzyme defect or
+    # renal disease rather than at ordinary gout.
+    "M10.9": {"female_probability": 0.35, "min_age": 30},  # Gout
+    # About 9 in 10 people with lupus are women (CDC's national lupus registries; US
+    # Office on Women's Health). Childhood-onset lupus is real, so there is no floor.
+    "M32.9": {"female_probability": 0.90},  # Systemic lupus erythematosus
+    # Sjögren's runs about 9:1 female across population-based studies, and higher in
+    # several of them.
+    "M35.00": {"female_probability": 0.90},  # Sjögren's syndrome
+    # The USPSTF screening review puts aneurysm prevalence over 50 at 3.9-7.2% in men
+    # against 1.0-1.3% in women, and screening is offered to men only. I71.9 is
+    # *unspecified site*, so it also covers thoracic aneurysm, whose sex ratio is
+    # flatter; 0.2 follows the abdominal figures, which dominate the counts.
+    "I71.9": {"female_probability": 0.20, "min_age": 50},  # Aortic aneurysm
+    # Almost two-thirds of Americans with Alzheimer's are women (Alzheimer's Association,
+    # Alzheimer's Disease Facts and Figures). The same source puts younger-onset dementia
+    # at roughly 200,000 Americans aged 30-64 against about 7 million aged 65 and over
+    # with Alzheimer's dementia, so the under-65 band is a few percent — rounded up to 5,
+    # generously. Early-onset disease is defined by onset before 65 and is vanishingly
+    # rare below the mid-forties, which is where the floor comes from.
+    "G30.9": {"female_probability": 0.65, "age_bands": ((5, 45, 64), (95, 65, 100))},  # Alzheimer's disease
+    # Women are 5-8 times likelier than men to develop thyroid disease (American Thyroid
+    # Association) — a statement about thyroid disease as a whole, used here as the best
+    # published figure for hypothyroidism on its own.
+    "E03.9": {"female_probability": 0.85},  # Hypothyroidism
+    # Rheumatoid arthritis runs about 3:1 female overall and closer to 2:1 after 60
+    # (Alamanos & Drosos, Autoimmun Rev 2005, and the reviews since); 0.70 sits at the
+    # conservative end of "two to three times more common in women".
+    "M06.9": {"female_probability": 0.70},  # Rheumatoid arthritis
+    # Multiple sclerosis is about 3:1 female in contemporary cohorts, up from 2:1 in the
+    # 1980s and 1:1 in the 1940s — the ratio is still moving, so this one will date.
+    "G35": {"female_probability": 0.75},  # Multiple sclerosis
+    # CDC's ADDM network identified autism in 4.9% of boys and 1.4% of girls aged 8 in
+    # 2022 (MMWR Surveill Summ 2025;74(2)). That is the *diagnosed* ratio: girls are
+    # widely held to be under-diagnosed, so the underlying ratio is probably narrower —
+    # but a fixture built from health and education records should look like the records.
+    "F84.0": {"female_probability": 0.22},  # Autism spectrum disorder
+    # 15% of boys and 8% of girls aged 3-17 had ever been diagnosed with ADHD in the 2022
+    # National Survey of Children's Health (CDC). Diagnosed, with the same caveat.
+    "F90.9": {"female_probability": 0.35},  # Attention deficit hyperactivity disorder
+    # ---- Lifelong, but not spread evenly across a lifetime. ----
+    # Adults are two-thirds of the people living with congenital heart disease: 66% (95%
+    # CI 64-68) in 2010, up from 49% in 2000 (Marelli et al., Circulation
+    # 2014;130:749-756). A ceiling would still be wrong — Q24.9 is unspecified, and it
+    # covers lesions compatible with a normal lifespan — and the draw stays uniform
+    # *within* each group, because the child/adult split is the part with a source. That
+    # alone moves the median generated age from 50 to about 38.
+    "Q24.9": {"age_bands": ((34, 0, 17), (66, 18, 100))},  # Congenital heart disease
+    # Cystic fibrosis is lifelong, and the CF Foundation Patient Registry gives its
+    # shape: about 60% of people with CF in the US are 18 or over, 27% of those adults
+    # are 40 or over, and 22% of the 40-and-overs are 60 or over. Median predicted
+    # survival for a child born in 2020-2024 is 65 years, so 80 is the outermost age this
+    # generator will produce, not a limit on the disease — the same sense in which
+    # `max_value` bounds an analyte.
+    "E84.9": {"age_bands": ((40, 0, 17), (44, 18, 39), (12, 40, 59), (4, 60, 80))},  # Cystic fibrosis
 }
+
+# A sex weighting is applied in whole thousandths and an age band in whole ten-thousandths
+# of the band's share, so both draws stay integer arithmetic on the provider's own RNG —
+# no floats decide a branch, and a seeded run reproduces exactly.
+SEX_PROBABILITY_RESOLUTION = 1_000
+AGE_BAND_RESOLUTION = 10_000
 
 # The ages `patient()` draws between when a condition constrains neither end. No age
 # structure is modelled — a real clinic population is far from uniform — because any
@@ -495,6 +603,19 @@ def flag_for(value_steps: int, low_steps: int, high_steps: int) -> Flag:
     return "normal"
 
 
+def declared_age_range(constraint: DemographicConstraint) -> tuple[int, int]:
+    """Return the inclusive age range a constraint declares, before any clamping.
+
+    An `age_bands` entry declares its range through its bands — the first band's floor
+    and the last band's ceiling — so the bounds are written once rather than restated as
+    `min_age`/`max_age` beside them, where the two could drift apart.
+    """
+    bands = constraint.get("age_bands")
+    if bands:
+        return bands[0][1], bands[-1][2]
+    return constraint.get("min_age", PATIENT_AGE_RANGE[0]), constraint.get("max_age", PATIENT_AGE_RANGE[1])
+
+
 def age_range_for(constraint: DemographicConstraint, default: tuple[int, int] = PATIENT_AGE_RANGE) -> tuple[int, int]:
     """Return the inclusive age range a constraint allows, within `default`.
 
@@ -503,24 +624,62 @@ def age_range_for(constraint: DemographicConstraint, default: tuple[int, int] = 
             how `patient_record()` learns that a paediatric-only condition cannot be
             given an adult age, instead of silently returning an impossible one.
     """
-    minimum = max(default[0], constraint.get("min_age", default[0]))
-    maximum = min(default[1], constraint.get("max_age", default[1]))
+    declared_minimum, declared_maximum = declared_age_range(constraint)
+    minimum = max(default[0], declared_minimum)
+    maximum = min(default[1], declared_maximum)
     if minimum > maximum:
         raise ValueError(f"No age between {default[0]} and {default[1]} satisfies this condition's constraint {dict(constraint)}")
     return minimum, maximum
 
 
+def age_bands_for(constraint: DemographicConstraint, default: tuple[int, int] = PATIENT_AGE_RANGE) -> tuple[tuple[int, int, int], ...]:
+    """Return the `(weight, lowest, highest)` bands an age may be drawn from.
+
+    A constraint with no `age_bands` gives one band spanning its whole allowed range,
+    which is the uniform draw. A constraint with bands gives them clipped to `default`
+    and reweighted for the clipping: `patient_record()` asks for adults only, so cystic
+    fibrosis loses its 0-17 band entirely and congenital heart disease loses a third of
+    its population — and the remaining bands keep their proportions to each other rather
+    than being silently renormalised into the wrong shape. A band clipped in half carries
+    half its share, because the draw inside a band is uniform.
+
+    The weights are integers (`AGE_BAND_RESOLUTION` per share point) and are relative to
+    each other, not percentages: the caller draws against their sum.
+
+    Raises:
+        ValueError: from `age_range_for`, if nothing at all survives the clipping.
+    """
+    minimum, maximum = age_range_for(constraint, default)
+    bands = constraint.get("age_bands")
+    if not bands:
+        return ((AGE_BAND_RESOLUTION, minimum, maximum),)
+    clipped = []
+    for share, lowest, highest in bands:
+        first, last = max(lowest, minimum), min(highest, maximum)
+        if first > last:
+            continue
+        weight = share * AGE_BAND_RESOLUTION * (last - first + 1) // (highest - lowest + 1)
+        if weight > 0:
+            clipped.append((weight, first, last))
+    return tuple(clipped)
+
+
 def is_paediatric_only(code: str, adult_age: int = ADULT_AGE_RANGE[0]) -> bool:
     """Whether a condition's constraint excludes every adult age."""
-    return DEMOGRAPHIC_CONSTRAINTS.get(code, {}).get("max_age", adult_age) < adult_age
+    return declared_age_range(DEMOGRAPHIC_CONSTRAINTS.get(code, {}))[1] < adult_age
 
 
 def satisfies_demographics(code: str, sex: Sex, age: int) -> bool:
-    """Whether a patient of this sex and age could have the condition with this code."""
+    """Whether a patient of this sex and age could have the condition with this code.
+
+    A `female_probability` weighting is deliberately not consulted: a weighted condition
+    can occur in either sex, and this predicate answers "could", not "how often".
+    """
     constraint = DEMOGRAPHIC_CONSTRAINTS.get(code, {})
     if "sex" in constraint and constraint["sex"] != sex:
         return False
-    return constraint.get("min_age", age) <= age <= constraint.get("max_age", age)
+    minimum, maximum = declared_age_range(constraint)
+    return minimum <= age <= maximum
 
 
 def alcohol_category_key(units: int) -> str:

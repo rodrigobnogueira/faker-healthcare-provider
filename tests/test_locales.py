@@ -7,6 +7,7 @@ from types import ModuleType
 import pytest
 from conftest import load_brand_name_generator
 from faker import Faker
+from zh_cn_equivalents import ZH_MEDICATIONS, ZH_SYMPTOMS
 
 from faker_healthcare import HealthcareProvider
 from faker_healthcare.assessments import ASSESSMENT_INSTRUMENTS
@@ -74,6 +75,20 @@ def _load_correlations(locale: str) -> dict:
     else:
         module = importlib.import_module(f"faker_healthcare.{locale}.disease_correlations")
     return module.DISEASE_CORRELATIONS
+
+
+def _by_icd10(locale: str) -> dict[str, list[tuple[str, dict]]]:
+    """Conditions grouped by ICD-10 code, in catalogue order within a code.
+
+    Two conditions may share a code (`Epilepsy` and `Seizure Disorder` → `G40.909`), so
+    the pairing between two locales is by code *and* position. Position is what makes an
+    index shift visible; reordering the entries under one code in one locale only is a
+    real divergence and is meant to fail.
+    """
+    grouped: defaultdict[str, list[tuple[str, dict]]] = defaultdict(list)
+    for name, data in _load_correlations(locale).items():
+        grouped[data["icd10"]].append((name, data))
+    return dict(grouped)
 
 
 def _load_constants(locale: str) -> ModuleType:
@@ -702,12 +717,95 @@ class TestMedicationNameParity:
         assert not offenders, f"zh_CN medication names contain Japanese kana: {offenders}"
 
 
+class TestZhTranslationEquivalence:
+    """A localized drug must name the SAME substance as the base entry, and it is checked.
+
+    `TestLocaleParity` counts symptoms and medications per ICD-10 code, which is blind to
+    the worst defect this data can carry: a plausible, real, *different* drug in one
+    locale. zh_CN shipped four of them — `地西泮` (diazepam) for Disulfiram, `可乐定`
+    (clonidine) for Clonazepam, `铝碳酸镁` (hydrotalcite) for Sucralfate, `布林佐胺`
+    (brinzolamide) for Brimonidine — with every count correct.
+
+    So the correspondence itself is pinned, in `tests/zh_cn_equivalents.py`: walking the
+    two catalogues together, slot by slot, each Chinese string must be the one recorded
+    for the English string beside it. That fails on a substituted drug, on an index shift
+    (which is how three of the four are believed to have arrived), and on a second
+    spelling of a drug that already has one.
+    """
+
+    @staticmethod
+    def _slots(field: str) -> list[tuple[str, str, str, str]]:
+        """Every (ICD-10 code, base condition name, English term, Chinese term) slot."""
+        base = _by_icd10("en_US")
+        chinese = _by_icd10("zh_CN")
+        slots: list[tuple[str, str, str, str]] = []
+        for code, entries in base.items():
+            for position, (name, data) in enumerate(entries):
+                _, zh_data = chinese[code][position]
+                slots.extend((code, name, term, zh_data[field][index]) for index, term in enumerate(data[field]))
+        return slots
+
+    def test_every_base_medication_has_a_committed_chinese_equivalent(self) -> None:
+        missing = sorted({term for _, _, term, _ in self._slots("medications")} - set(ZH_MEDICATIONS))
+        assert not missing, f"medications with no entry in tests/zh_cn_equivalents.py: {missing}"
+
+    def test_every_base_symptom_has_a_committed_chinese_equivalent(self) -> None:
+        missing = sorted({term for _, _, term, _ in self._slots("symptoms")} - set(ZH_SYMPTOMS))
+        assert not missing, f"symptoms with no entry in tests/zh_cn_equivalents.py: {missing}"
+
+    def test_the_tables_carry_nothing_the_catalogue_dropped(self) -> None:
+        """Otherwise a removed condition leaves its translations behind to rot."""
+        for table, field, name in ((ZH_MEDICATIONS, "medications", "ZH_MEDICATIONS"), (ZH_SYMPTOMS, "symptoms", "ZH_SYMPTOMS")):
+            stale = sorted(set(table) - {term for _, _, term, _ in self._slots(field)})
+            assert not stale, f"{name} has entries the base catalogue no longer contains: {stale}"
+
+    def test_every_zh_medication_is_the_committed_equivalent_of_the_base_medication(self) -> None:
+        wrong = {
+            f"{code} ({condition}): {term}": f"{chinese} (expected {ZH_MEDICATIONS[term]})"
+            for code, condition, term, chinese in self._slots("medications")
+            if term in ZH_MEDICATIONS and chinese != ZH_MEDICATIONS[term]
+        }
+        assert not wrong, f"zh_CN names a different substance than the base entry: {wrong}"
+
+    def test_every_zh_symptom_is_the_committed_equivalent_of_the_base_symptom(self) -> None:
+        wrong = {
+            f"{code} ({condition}): {term}": f"{chinese} (expected {ZH_SYMPTOMS[term]})"
+            for code, condition, term, chinese in self._slots("symptoms")
+            if term in ZH_SYMPTOMS and chinese != ZH_SYMPTOMS[term]
+        }
+        assert not wrong, f"zh_CN describes a different symptom than the base entry: {wrong}"
+
+    def test_two_substances_never_share_one_chinese_name(self) -> None:
+        """The medication mapping is one-to-one in both directions.
+
+        One Chinese string standing for two English drugs is the signature of the defect:
+        `可乐定` was the shipped translation of both Clonidine and Clonazepam. (Symptoms
+        are deliberately exempt: `Headache`/`Headaches` and `Frequency`/`Frequent
+        Urination` are the same symptom written twice in the base catalogue.)
+        """
+        collisions = {chinese: sorted(term for term, name in ZH_MEDICATIONS.items() if name == chinese) for chinese in ZH_MEDICATIONS.values() if list(ZH_MEDICATIONS.values()).count(chinese) > 1}
+        assert not collisions, f"one Chinese name for more than one substance: {collisions}"
+
+    def test_the_table_agrees_with_the_substance_id_map(self) -> None:
+        """The bridge to `MEDICATION_NAMES`, so the two mappings cannot drift apart.
+
+        `MEDICATION_NAMES` maps a substance ID to each catalogue's spelling for the ~130
+        substances with a dose ladder; this table covers all of them plus every undosed
+        one, keyed by the base spelling. Where they overlap they must agree, or a dose
+        would print beside a name this table says belongs to another drug.
+        """
+        base_names = _load_medication_names("en_US")
+        zh_names = _load_medication_names("zh_CN")
+        disagreements = {substance: (ZH_MEDICATIONS.get(base_names[substance]), zh_names[substance]) for substance in base_names if ZH_MEDICATIONS.get(base_names[substance]) != zh_names[substance]}
+        assert not disagreements, f"MEDICATION_NAMES and ZH_MEDICATIONS disagree (table, MEDICATION_NAMES): {disagreements}"
+
+
 class TestZhBrandCatalogue:
     """Same guarantee as the base catalogue, asserted over the whole shipped tuple.
 
-    The Chinese list carries the weaker claim of the two — see the TODO in
-    faker_healthcare/zh_CN/brand_names.py — but "not reviewed by a fluent speaker" is
-    not a licence to skip the screens that can be automated.
+    The Chinese list is the weaker of the two and its module says exactly how — it has had
+    a Simplified-Chinese reading pass but no trademark search and no recorded native
+    speaker's sign-off — which is not a licence to skip the screens that can be automated.
     """
 
     def test_catalogue_is_non_empty_sorted_and_deduplicated(self) -> None:

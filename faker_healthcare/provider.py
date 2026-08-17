@@ -31,9 +31,10 @@ from .clinical_values import (
     PULSE_PRESSURE_RANGE_MMHG,
     SEVERITY_RESOLUTION,
     SEVERITY_TIERS,
+    SEX_PROBABILITY_RESOLUTION,
     SEXES,
     VITAL_DEFINITIONS,
-    age_range_for,
+    age_bands_for,
     alcohol_category_key,
     flag_for,
     from_steps,
@@ -918,12 +919,45 @@ class HealthcareProvider(BaseProvider):
         oldest = _shift_years(reference_date, age + 1) + timedelta(days=1)
         return oldest + timedelta(days=self.random_int(0, (newest - oldest).days))
 
+    def _sex(self, constraint: DemographicConstraint) -> Sex:
+        """Draw a sex at the strength the condition's constraint states.
+
+        A `sex` lock is absolute. A `female_probability` weighting is a share, drawn in
+        whole thousandths so the branch is decided by integer arithmetic on the
+        provider's own RNG. Neither key means an even split, which is the honest answer
+        for a condition nobody has a sourced ratio for.
+        """
+        if "sex" in constraint:
+            return constraint["sex"]
+        probability = constraint.get("female_probability")
+        if probability is None:
+            sex: Sex = self.random_element(SEXES)
+            return sex
+        return "female" if self.random_int(1, SEX_PROBABILITY_RESOLUTION) <= round(probability * SEX_PROBABILITY_RESOLUTION) else "male"
+
+    def _age(self, constraint: DemographicConstraint, age_range: tuple[int, int]) -> int:
+        """Draw an age from the condition's age bands, clipped to `age_range`.
+
+        A condition with no age shape has exactly one band, and is drawn from directly:
+        one uniform draw, the same single call to the same RNG as before this method
+        learned about bands.
+        """
+        bands = age_bands_for(constraint, age_range)
+        lowest, highest = bands[0][1], bands[0][2]
+        if len(bands) > 1:
+            roll = self.random_int(1, sum(weight for weight, _, _ in bands))
+            for weight, band_lowest, band_highest in bands:
+                lowest, highest = band_lowest, band_highest
+                roll -= weight
+                if roll <= 0:
+                    break
+        return self.random_int(lowest, highest)
+
     def _demographics(self, code: str, age_range: tuple[int, int], reference_date: date | None) -> tuple[Sex, int, date]:
         """Draw a sex, an age and a date of birth that satisfy a condition's constraint."""
         constraint = self._constraint(code)
-        sex: Sex = constraint["sex"] if "sex" in constraint else self.random_element(SEXES)
-        minimum_age, maximum_age = age_range_for(constraint, age_range)
-        age = self.random_int(minimum_age, maximum_age)
+        sex = self._sex(constraint)
+        age = self._age(constraint, age_range)
         return sex, age, self._birth_date(age, reference_date or date.today())
 
     def patient(self, disease: str | None = None, reference_date: date | None = None) -> Patient:
@@ -935,6 +969,12 @@ class HealthcareProvider(BaseProvider):
         diagnosis without consulting them is how a male preeclampsia patient reaches a
         test suite; `clinical_values.DEMOGRAPHIC_CONSTRAINTS` is what this method
         consults, and it is keyed by ICD-10 code so it holds in all six languages.
+
+        Skew is honoured as well as prohibition. A condition may weight the sex rather
+        than lock it — breast cancer comes out 99% female, because male breast cancer is
+        real and is about 1% of cases — and may shape the age rather than bound it, so
+        cystic fibrosis is lifelong without generating uniformly many eighty-year-olds.
+        Every weight in that table cites the published figure it came from.
 
         `sex` is a locale-neutral ID (`'male'` / `'female'`) rather than a display word,
         because it is also the argument `body_measurements(sex=...)` takes.

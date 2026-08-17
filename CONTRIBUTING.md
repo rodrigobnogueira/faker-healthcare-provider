@@ -118,7 +118,32 @@ releases missing the `G40.909` condition the other five locales had and carrying
   dose ladders, with every value checked to be a medication that locale's catalogue
   actually prescribes;
 - that `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug
-  name reached the Simplified Chinese catalogue.
+  name reached the Simplified Chinese catalogue;
+- that every zh_CN medication and symptom is the **committed equivalent** of the English
+  term in the same slot (see below).
+
+**A localized drug name must name the same substance as the base entry.** This is the
+defect the count-based checks above cannot see, and the worst one this data can carry: a
+real drug, plausible for the condition, wrong, in one locale only. zh_CN shipped `地西泮`
+(diazepam) where the base says Disulfiram, `可乐定` (clonidine) where it says Clonazepam,
+`铝碳酸镁` (hydrotalcite) where it says Sucralfate, and `布林佐胺` (brinzolamide) where it
+says Brimonidine — with every count matching, because a substitution and an index shift
+both preserve counts.
+
+So the correspondence is pinned in `tests/zh_cn_equivalents.py`: the exact Chinese string
+for every English medication and symptom. `TestZhTranslationEquivalence` walks the two
+catalogues together — by ICD-10 code, then by position within it — and fails, naming the
+slot, on any disagreement. Two consequences for a contributor:
+
+- **changing or adding a zh_CN medication or symptom means editing that table in the same
+  commit**, which is the point: the change becomes deliberate and reviewable instead of a
+  string edit nobody can check;
+- **one Chinese name may not stand for two substances.** `可乐定` was serving as both
+  Clonidine and Clonazepam, and that ambiguity is exactly what let the wrong one ship.
+
+The other five locales have no such table yet; adding one is a genuinely valuable
+contribution, but it has to be the *record of a term-by-term review*, not a transcription
+of what the catalogue currently says.
 
 An English-only addition, or one with four symptoms in one locale and five in another,
 will fail CI. If you cannot produce all six translations, open an issue describing the
@@ -250,9 +275,27 @@ The words live in the six `clinical_labels.py` files.
   occurrence undosed rather than adding a wrong name.
 - **Demographic constraints are locale-neutral and keyed by ICD-10 code.** "Female" is a
   fact about preeclampsia, not a word about it. Constrain only what is unambiguous, and
-  when you decide *not* to constrain something that looks constrained, write down why:
-  breast cancer is not female-only, and congenital heart disease and cystic fibrosis are
-  no longer paediatric conditions.
+  when you decide *not* to constrain something that looks constrained, write down why —
+  the haemophilia entry's code is *acquired* haemophilia, which has no sex skew, and
+  sickle cell disease skews by ancestry, which this package does not model.
+- **A demographic skew is weighted and sourced, never asserted as an absolute unless it
+  genuinely is one.** There are three strengths available and the wrong one ships a false
+  fact:
+  - `sex` locks a condition to one sex. Preeclampsia is female, full stop;
+  - `female_probability` weights it — the share of patients who are female — for a
+    condition that is strongly skewed but not locked. Breast cancer is 0.99, not "female";
+  - `min_age`/`max_age` bound a uniform age draw; `age_bands` — `(share, lowest, highest)`
+    triples, contiguous and summing to 100 — replace them with a shape for a condition
+    whose real age distribution is nothing like uniform; an absent key means "anyone".
+
+  **Cite the figure in the comment above the entry**, the same bar as a lab correlation:
+  "male breast cancer is under 1% of breast cancers (American Cancer Society)", not
+  "mostly women". A skew you cannot source is not added. Remember that leaving a condition
+  free is also a claim — for one release breast cancer generated 49% male patients, which
+  is a worse error than the male-preeclampsia bug the table was written to prevent, while
+  locking it to female would have erased a real patient group. `TestDemographicConstraints`
+  draws thousands of seeded patients per weighted condition and fails if the observed
+  split or age shape drifts from the configured one, so a weighting cannot be a comment.
 - **`patient_record()` is adults only**, for the same reason `body_measurements()` is: the
   reference intervals, dose ladders and anthropometry here are adult data. It refuses a
   paediatric-only condition instead of ageing the patient up. `patient()` will happily
@@ -348,11 +391,22 @@ and not "any resemblance is coincidental" — those are unfalsifiable, this repo
 shipped both, and five reachable names contradicted them. Keep the wording checkable.
 Reports of a collision are welcome; they land in the denylist.
 
-**The Chinese list is weaker and says so.** `ZH_BRAND_NAMES` passes the automated screens
-but has not been reviewed by a fluent Chinese speaker, and `faker_healthcare/zh_CN/brand_names.py`
-carries a `TODO(review)` to that effect. If you read Chinese, a review pass is a genuinely
-useful contribution: additions go to `ZH_REAL_PRODUCT_DENYLIST` with the reason, then
-re-run the script.
+**The Chinese list runs the same process and states a narrower claim.** `REVIEWED_ZH_NAMES`
+is the Chinese `REVIEWED_LATIN_NAMES`, `--propose-zh N` is its `--propose`, and it has two
+screens of its own: `ZH_REAL_PRODUCT_DENYLIST` (append-only, a reason per entry) and
+`ZH_GENERIC_MORPHEMES`, the Chinese counterpart of the INN-stem screen — a name containing
+素/维/尔/平/定 reads as a *substance* (维生素, 美托洛尔, 氨氯地平, 安定 = diazepam), not as a brand.
+
+The 64 names that module used to ship were read one by one in Simplified Chinese on
+**2026-08-16** and 58 were rejected — real companies and products, ordinary words, personal
+names, and pairs that do not read as a brand at all. Six survived. That is the honest yield
+in a morpheme space this saturated: with 康/泰/瑞/舒/益/欣 recycled across so many marketed
+products, the candidates that sound most like a real Chinese drug brand are the likeliest to
+be one. The module states what the pass was **and what it was not** — no trademark register
+was searched, and no fluent native speaker's sign-off is recorded — so do not describe it as
+one. If you read Chinese, a second pass is genuinely useful: rejections go to
+`ZH_REAL_PRODUCT_DENYLIST` with the reason, additions go to `REVIEWED_ZH_NAMES` only after
+you have read them, and then re-run the script.
 
 ### Any other generated identifier follows the same rule
 
@@ -364,6 +418,13 @@ claim more than the screen supports. If a set cannot be responsibly screened (sa
 a language you do not read), ship it as a static list anyway, mark it unscreened in the
 module and in the PR, and leave the TODO: a short unreviewed list can be audited and fixed,
 a runtime generator cannot.
+
+**A locale-specific set gets the same machinery, not a lighter one**: its own append-only
+denylist with a reason per entry, its own equivalent of the INN-stem screen, its own
+reviewed list and `--propose`, and the same whole-set test — all in the same script. And
+the TODO is where such a list starts, not where it stays: when the review happens, replace
+the TODO with what was actually done *and what was not*, which is the only version of the
+claim a reader can check.
 
 ### Diagnostic codes, provenance, and licensing
 
@@ -452,6 +513,12 @@ Rules for any code that generates a value:
   and its entire multi-locale path used `Faker('es_ES')` with the base
   `HealthcareProvider`, which loads the **English** data. Use
   `from faker_healthcare.es_ES import Provider` in any locale example you write.
+- **New condition, or a corrected zh_CN medication or symptom:** add or update its entry
+  in `tests/zh_cn_equivalents.py` in the same commit — the table is keyed by the English
+  term and holds the exact Chinese string, and `TestZhTranslationEquivalence` fails on a
+  base term with no entry, on a stale entry the catalogue no longer uses, and on a slot
+  whose Chinese string is not the one recorded. Say in the PR what the Chinese name is,
+  the same way you would source any other medical fact.
 - **New locale data file or provider:** keep the lazy `_load_disease_correlations`
   pattern and check that `tests/test_performance.py` still passes — it runs the memory
   isolation checks in subprocesses.

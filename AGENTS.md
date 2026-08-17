@@ -44,9 +44,11 @@ changes small, data-focused, and easy to verify.
   `clinical_labels.py`, and `disease_correlations.py`.
 - `tests/` — `test_provider.py`, `test_correlations.py`, `test_locales.py`,
   `test_clinical_values.py`, `test_records.py`, `test_performance.py`, `test_readme.py`,
-  and `conftest.py`
+  `conftest.py`
   (which loads the generator script so the tests re-run its screens instead of restating
-  them).
+  them), and `zh_cn_equivalents.py` — the committed English→Simplified Chinese equivalent
+  of every medication and symptom, which `TestZhTranslationEquivalence` holds the zh_CN
+  catalogue to slot by slot.
 - `README.md` — its examples are **executable**: `tests/test_readme.py` runs every fenced
   `python` block and calls every method the "Available Methods" table lists. Change a public
   method and the README changes with it, in the same PR.
@@ -198,8 +200,34 @@ split applies: **numeric tables are locale-neutral, only words are translated.**
 - **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
   by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
   never copied into six catalogues. Constrain only what is unambiguous, and record the
-  reasoning for a condition you deliberately did NOT constrain (breast cancer is not
-  female-only; congenital heart disease and cystic fibrosis are no longer paediatric).
+  reasoning for a condition you deliberately did NOT constrain (haemophilia's shipped code
+  is *acquired* haemophilia, which has no sex skew; sickle cell disease skews by ancestry,
+  which this package does not model).
+- **A skew is weighted and sourced; it is never asserted as an absolute unless it is one.**
+  The table offers three strengths and choosing the wrong one generates a false fact:
+  - `sex` is an **absolute lock** — preeclampsia is female, full stop. Use it only where
+    the condition genuinely cannot occur in the other sex;
+  - `female_probability` is a **weighting**, the share of patients who are female, for a
+    condition that is strongly skewed but not locked;
+  - `min_age`/`max_age` bound a uniform age draw, `age_bands` (`(share, lowest, highest)`
+    triples, contiguous, summing to 100) replace them with a shape, and an absent key means
+    "anyone". `age_bands` and `min_age`/`max_age` are mutually exclusive: the bands already
+    carry the bounds, and restating them is two places to disagree.
+- **Cite the figure inline, next to the entry.** The same bar as `CONDITION_LAB_EFFECTS`:
+  the number and where it comes from, in the comment above the entry — "male breast cancer
+  is under 1% of breast cancers (ACS)", not "mostly women". **A skew you cannot source is
+  not added**, and a sourced skew is written at the strength the source supports.
+- **"Free" is a claim too.** For one release this table was binary — locked or free — and
+  three conditions were correctly refused a lock on medical grounds, which left them free.
+  Breast cancer then generated 49% male patients against a real figure under 1% (a fiftyfold
+  error, worse than the male-preeclampsia bug the table was built to fix) and cystic
+  fibrosis drew ages uniformly to 100. Reaching for `sex: "female"` would have been wrong in
+  the other direction: men with breast cancer are a real patient group and must remain
+  generatable. If neither absolute is true, weight it and cite the weight.
+- **Assert the weighting, do not just declare it.** `tests/test_records.py::TestDemographicConstraints`
+  draws thousands of seeded patients per weighted condition and fails if the observed split
+  or age shape drifts from the configured one, if a weighting silently becomes a lock, or if
+  a constrained code is not a real catalogue code. A weighting nobody measures is a comment.
 
 ## Assessment Instruments: scores only, never item text
 
@@ -252,6 +280,28 @@ extract or a de-identification test rig actually holds.
   - `zh_CN` contains no Japanese kana (U+3040–U+30FF) — that is how a katakana drug name
     (リオチロニン) reached the Simplified Chinese catalog.
 
+- **A localized medication must name the SAME SUBSTANCE as the base entry, and a test
+  says so.** This is the most dangerous defect this data can carry, because it is
+  invisible: a real drug, plausible for the condition, in one locale only. zh_CN shipped
+  four — `地西泮` (diazepam) for Disulfiram, `可乐定` (clonidine) for Clonazepam,
+  `铝碳酸镁` (hydrotalcite) for Sucralfate, `布林佐胺` (brinzolamide) for Brimonidine —
+  and every parity count was correct throughout, because a substitution and an index shift
+  both preserve the counts.
+  - `tests/zh_cn_equivalents.py` pins the correspondence: the exact Chinese string for
+    every English medication and symptom in the base catalogue.
+    `test_locales.py::TestZhTranslationEquivalence` walks the two catalogues together, by
+    ICD-10 code and by position within it, and fails by name on a slot that disagrees.
+    Correcting or adding a translation means editing that table in the same commit.
+  - The medication mapping is **one-to-one in both directions**: one Chinese name may not
+    stand for two substances (that is exactly what `可乐定` was doing). Symptoms are
+    exempt from injectivity only because the base catalogue writes the same symptom two
+    ways (`Headache`/`Headaches`, `Frequency`/`Frequent Urination`).
+  - Where a substance has a dose ladder, this table and `MEDICATION_NAMES` must agree; a
+    test asserts it, so the two mappings cannot drift.
+  - The other five locales have no such table yet. Adding one is a locale-review task, not
+    a mechanical one — write the table as the *record* of a term-by-term review, never by
+    transcribing what the catalogue happens to say today.
+
   If you add a condition, add it to **all six** `disease_correlations.py` files (English base
   plus five locales), with the same number of symptoms and medications in each. If you add,
   remove, or translate a shared constant entry, do it in all six `constants.py` files.
@@ -288,10 +338,18 @@ extract or a de-identification test rig actually holds.
     not in `REAL_PRODUCT_DENYLIST`, no `OFFENSIVE_SUBSTRINGS` term, and no collision with a drug in
     any locale's catalogue. Adding a name means adding it to `REVIEWED_LATIN_NAMES` **after reading
     it**; `--propose N` prints screened candidates spread evenly across prefixes to review.
+  - **The Chinese list works exactly the same way** — `REVIEWED_ZH_NAMES` is its
+    `REVIEWED_LATIN_NAMES`, `--propose-zh N` is its `--propose`, and `ZH_REAL_PRODUCT_DENYLIST` and
+    `ZH_GENERIC_MORPHEMES` are its screens. A locale that invents identifiers does not get a weaker
+    process because the reviewer is harder to find; it gets the same one, and the module says what
+    the review did and did not cover. `ZH_GENERIC_MORPHEMES` is the Chinese `BRAND_FORBIDDEN_ENDINGS`:
+    a name containing 素/维/尔/平/定 reads as a substance (维生素, 美托洛尔, 氨氯地平, 安定), not as a brand.
   - `REAL_PRODUCT_DENYLIST`, `ZH_REAL_PRODUCT_DENYLIST` and `OFFENSIVE_SUBSTRINGS` are
     **append-only**. A name is never removed once added, whatever the reason it went in: removing
     one silently re-admits a name a reviewer already rejected. Discontinued products and marginal
-    collisions stay.
+    collisions stay. Write the reason beside each entry — a 2026-08-16 reading pass rejected 58 of
+    the 64 Chinese names then shipping, and the value of that pass is in the 58 recorded reasons,
+    not in the 6 survivors.
   - Do not restore the old design. `brand_drug()` used to concatenate morphemes at call time (31,500
     names, 30,752 more in zh_CN), retry 12 times against the INN stems, and **return the last
     attempt anyway** when every retry failed. Nothing screened those names for real products, and
@@ -364,6 +422,23 @@ and is governed by the rules above instead.
   a language you do not have — ship it anyway as a static list, say plainly in the module and
   the PR that it is unscreened, and leave a marked TODO. A short unreviewed list is auditable
   and fixable; a runtime generator is neither. Do not describe it as screened.
+- **A locale-specific generated identifier gets the same machinery as the Latin one**, in the
+  same script: its own append-only denylist with a reason per entry, its own equivalent of the
+  INN-stem screen (for Chinese, `ZH_GENERIC_MORPHEMES` — a name that reads as a substance is
+  not a brand), its own reviewed list, its own `--propose`, and the same whole-set test. The
+  TODO above is where such a list *starts*, not where it is allowed to stay: the 64 unreviewed
+  Chinese names carried that TODO for one release, a reading pass then rejected 58 of them, and
+  the six survivors are what "screened" honestly means here.
+- **When the TODO is discharged, replace it with what was actually done — including what was
+  not.** "Read one by one in Simplified Chinese on <date> against <these criteria>; not a
+  trademark search; no native speaker's sign-off recorded" is checkable and is the whole
+  claim. Do not upgrade a reading pass into a sign-off, do not name a reviewer who did not
+  review, and keep inviting the report that lands in the denylist.
+- **Expect the plausible names to be the dangerous ones.** Chinese pharmaceutical brands recycle
+  康/泰/瑞/舒/益/欣 so heavily that the candidates which sound most like a real brand are the ones
+  most likely to be one, while the rest fail plausibility instead. A generator over a saturated
+  morpheme space has no safe middle, which is why the shipped set is small and why growing it
+  means reading candidates one at a time rather than raising a target size.
 
 ## Performance Test Expectations
 

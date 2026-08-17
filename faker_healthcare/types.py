@@ -48,11 +48,36 @@ class DemographicConstraint(TypedDict, total=False):
     Every key is optional and an entry states only what it actually knows: preeclampsia
     pins `sex` and both age bounds, prostate cancer pins `sex` and a floor, bronchiolitis
     pins only a ceiling. An absent key is "no constraint", never a default.
+
+    Sex comes in two strengths, because most conditions are neither locked to one sex nor
+    evenly split between them:
+
+    - `sex` is an **absolute** lock. Preeclampsia is female, full stop.
+    - `female_probability` is a **weighting** — the share of patients who are female, a
+      float strictly between 0 and 1. Breast cancer is 99% female, not 100%: male breast
+      cancer is under 1% of cases and a package that could not generate one would be
+      wrong in the other direction. The two keys are mutually exclusive; a weight of 0 or
+      1 is a lock and must be written as one.
+
+    Age comes in the same two strengths:
+
+    - `min_age` / `max_age` are inclusive bounds on a plausible patient's age, not on the
+      age at diagnosis and not a hard clinical limit. Inside them the draw is uniform.
+    - `age_bands` replaces them with a **shape**: a tuple of `(share, lowest, highest)`
+      triples, where `share` is the percentage of patients in that band and the draw is
+      uniform within it. The bands are contiguous, ascending, and their shares sum to
+      100, so the first band's floor and the last band's ceiling are the age bounds —
+      which is why `age_bands` is mutually exclusive with `min_age` / `max_age` rather
+      than restating them. A condition whose real population is nothing like uniform
+      (two-thirds of people living with congenital heart disease are adults) gets a
+      band; a condition whose shape nobody here can source keeps the uniform draw.
     """
 
     sex: Sex
+    female_probability: float
     min_age: int
     max_age: int
+    age_bands: tuple[tuple[int, int, int], ...]
 
 
 class PatientScenario(TypedDict):
