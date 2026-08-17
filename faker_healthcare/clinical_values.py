@@ -373,7 +373,7 @@ ADULT_AGE_RANGE = (18, 110)
 #   * every other condition keeps the uniform 0-100 draw, including adult-onset ones
 #     where an age floor would be reasonable. Adding one means sourcing it.
 DEMOGRAPHIC_CONSTRAINTS: dict[str, DemographicConstraint] = {
-    # ---- Locked: the condition occurs in one sex, full stop. ----
+    # ---- Locked, because these genuinely are absolutes. ----
     # Female-only. The four with an upper bound are bounded by reproductive age rather
     # than by the condition: an endometriosis diagnosis can persist past the menopause,
     # but a *new* patient generated for it is of reproductive age.
