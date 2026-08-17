@@ -200,8 +200,34 @@ split applies: **numeric tables are locale-neutral, only words are translated.**
 - **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
   by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
   never copied into six catalogues. Constrain only what is unambiguous, and record the
-  reasoning for a condition you deliberately did NOT constrain (breast cancer is not
-  female-only; congenital heart disease and cystic fibrosis are no longer paediatric).
+  reasoning for a condition you deliberately did NOT constrain (haemophilia's shipped code
+  is *acquired* haemophilia, which has no sex skew; sickle cell disease skews by ancestry,
+  which this package does not model).
+- **A skew is weighted and sourced; it is never asserted as an absolute unless it is one.**
+  The table offers three strengths and choosing the wrong one generates a false fact:
+  - `sex` is an **absolute lock** — preeclampsia is female, full stop. Use it only where
+    the condition genuinely cannot occur in the other sex;
+  - `female_probability` is a **weighting**, the share of patients who are female, for a
+    condition that is strongly skewed but not locked;
+  - `min_age`/`max_age` bound a uniform age draw, `age_bands` (`(share, lowest, highest)`
+    triples, contiguous, summing to 100) replace them with a shape, and an absent key means
+    "anyone". `age_bands` and `min_age`/`max_age` are mutually exclusive: the bands already
+    carry the bounds, and restating them is two places to disagree.
+- **Cite the figure inline, next to the entry.** The same bar as `CONDITION_LAB_EFFECTS`:
+  the number and where it comes from, in the comment above the entry — "male breast cancer
+  is under 1% of breast cancers (ACS)", not "mostly women". **A skew you cannot source is
+  not added**, and a sourced skew is written at the strength the source supports.
+- **"Free" is a claim too.** For one release this table was binary — locked or free — and
+  three conditions were correctly refused a lock on medical grounds, which left them free.
+  Breast cancer then generated 49% male patients against a real figure under 1% (a fiftyfold
+  error, worse than the male-preeclampsia bug the table was built to fix) and cystic
+  fibrosis drew ages uniformly to 100. Reaching for `sex: "female"` would have been wrong in
+  the other direction: men with breast cancer are a real patient group and must remain
+  generatable. If neither absolute is true, weight it and cite the weight.
+- **Assert the weighting, do not just declare it.** `tests/test_records.py::TestDemographicConstraints`
+  draws thousands of seeded patients per weighted condition and fails if the observed split
+  or age shape drifts from the configured one, if a weighting silently becomes a lock, or if
+  a constrained code is not a real catalogue code. A weighting nobody measures is a comment.
 
 ## Assessment Instruments: scores only, never item text
 

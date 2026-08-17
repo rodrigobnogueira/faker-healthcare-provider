@@ -291,6 +291,17 @@ the `age` beside it. `patient()` will generate a child; `patient_record()` is **
 only**, because the reference intervals, dose ladders and anthropometry here are adult
 data, and it refuses a paediatric-only condition rather than ageing the patient up.
 
+**Skewed conditions are weighted, not faked absolute.** Most conditions are neither locked
+to one sex nor evenly split, so the same map carries a *weighting* beside the lock: breast
+cancer generates 99% female patients, because male breast cancer is under 1% of cases and a
+package that could never produce one would be wrong in the other direction. Fourteen
+conditions carry a sourced skew — osteoporosis, gout, lupus, Sjögren's, aortic aneurysm,
+Alzheimer's, hypothyroidism, rheumatoid arthritis, MS, autism, ADHD — and four of them
+carry an age *shape* rather than a flat range, because two-thirds of people living with
+congenital heart disease are adults and cystic fibrosis is lifelong but not evenly spread
+across a lifetime. Every weight cites the figure it came from in the comment beside it, and
+the test suite measures the generated split against it over thousands of seeded draws.
+
 **NHS numbers default to the reserved test range.** `nhs_number()` returns a ten-digit
 number that passes the NHS Modulus 11 check, formatted the conventional 3-3-4 way,
 beginning **999** — the range NHS England reserves for testing and never issues to a

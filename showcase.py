@@ -182,6 +182,13 @@ def showcase_records() -> None:
         patient = fake.patient(disease=disease)
         print(f"  • {disease:<18} {patient['sex']:<7} age {patient['age']:<4} born {patient['date_of_birth']}")
 
+    print_subheader("Skewed But Not Locked (1000 draws each, against a sourced weighting)")
+    for disease in ("Breast Cancer", "Gout", "Cystic Fibrosis", "Congenital Heart Disease"):
+        patients = [fake.patient(disease=disease) for _ in range(1000)]
+        female = sum(patient["sex"] == "female" for patient in patients) / 10
+        ages = sorted(patient["age"] for patient in patients)
+        print(f"  • {disease:<24} {female:>5.1f}% female   ages {ages[0]}-{ages[-1]}, median {ages[len(ages) // 2]}")
+
     print_subheader("A Complete Patient Record")
     record = fake.patient_record(disease="Depression")
     print(f"\n{record['disease']} ({record['icd10']}) — {record['sex']}, age {record['age']}, born {record['date_of_birth']}")

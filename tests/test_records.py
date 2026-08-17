@@ -26,10 +26,13 @@ from faker_healthcare.assessments import (
 from faker_healthcare.clinical_labels import CLINICAL_LABELS, MEDICATION_NAMES
 from faker_healthcare.clinical_values import (
     ADULT_AGE_RANGE,
+    AGE_BAND_RESOLUTION,
     BODY_PROFILES,
     DEMOGRAPHIC_CONSTRAINTS,
     PATIENT_AGE_RANGE,
     SEXES,
+    age_bands_for,
+    declared_age_range,
     is_paediatric_only,
     satisfies_demographics,
 )
@@ -53,9 +56,22 @@ from faker_healthcare.prescribing import (
     route_label_key,
     status_label_key,
 )
+from faker_healthcare.types import DemographicConstraint
 
 
 DISEASE_FOR_CODE = {data["icd10"]: name for name, data in DISEASE_CORRELATIONS.items()}
+
+# The conditions that state a skew rather than an absolute: a share of female patients,
+# or a shape for the ages. Both are asserted against the configured figure below, over
+# thousands of seeded draws, because a weighting nobody measures is a comment.
+SEX_WEIGHTED = sorted((code, constraint["female_probability"]) for code, constraint in DEMOGRAPHIC_CONSTRAINTS.items() if "female_probability" in constraint)
+AGE_BANDED = sorted((code, constraint["age_bands"]) for code, constraint in DEMOGRAPHIC_CONSTRAINTS.items() if "age_bands" in constraint)
+
+# Enough draws that the sampling error on any share here is well under a percentage
+# point, so the tolerance is a statement about the data and not about luck. The seeds are
+# fixed, so a failure is reproducible rather than intermittent.
+DEMOGRAPHIC_DRAWS = 4000
+DEMOGRAPHIC_TOLERANCE = 0.03
 
 STATUS_LABELS = {CLINICAL_LABELS[status_label_key(status)] for status in MEDICATION_STATUS_IDS}
 
@@ -329,7 +345,8 @@ class TestAssessmentScores:
 
 
 class TestDemographicConstraints:
-    """No male preeclampsia patients, no adults with bronchiolitis."""
+    """No male preeclampsia patients, no adults with bronchiolitis — and no 49% male
+    breast cancer either, which is what "unconstrained" used to mean."""
 
     @pytest.mark.parametrize("code", sorted(DEMOGRAPHIC_CONSTRAINTS))
     def test_every_constrained_code_is_a_shipped_condition(self, code: str) -> None:
@@ -342,12 +359,23 @@ class TestDemographicConstraints:
         assert set(SEXES) == set(BODY_PROFILES)
 
     @pytest.mark.parametrize("code,constraint", sorted(DEMOGRAPHIC_CONSTRAINTS.items()))
-    def test_constraints_are_well_formed_and_satisfiable(self, code: str, constraint: dict) -> None:
-        assert set(constraint) <= {"sex", "min_age", "max_age"}, code
+    def test_constraints_are_well_formed_and_satisfiable(self, code: str, constraint: DemographicConstraint) -> None:
+        assert set(constraint) <= {"sex", "female_probability", "min_age", "max_age", "age_bands"}, code
         assert constraint.get("sex", "male") in SEXES, code
-        minimum = constraint.get("min_age", PATIENT_AGE_RANGE[0])
-        maximum = constraint.get("max_age", PATIENT_AGE_RANGE[1])
+        assert not ("sex" in constraint and "female_probability" in constraint), f"{code} states both a lock and a weight, which contradict each other"
+        assert 0 < constraint.get("female_probability", 0.5) < 1, f"{code} weights a sex at 0 or 1, which is a lock and belongs in 'sex'"
+        assert not ("age_bands" in constraint and {"min_age", "max_age"} & set(constraint)), f"{code} declares its age bounds twice; the bands already carry them"
+        minimum, maximum = declared_age_range(constraint)
         assert PATIENT_AGE_RANGE[0] <= minimum <= maximum <= PATIENT_AGE_RANGE[1], code
+
+    @pytest.mark.parametrize("code,bands", AGE_BANDED)
+    def test_age_bands_are_contiguous_and_account_for_every_patient(self, code: str, bands: tuple) -> None:
+        """A gap between two bands would be an age range the condition silently never
+        generates, and shares that do not sum to 100 would mean the shape was guessed."""
+        assert sum(share for share, _, _ in bands) == 100, code
+        assert all(share > 0 for share, _, _ in bands), code
+        assert all(lowest <= highest for _, lowest, highest in bands), code
+        assert all(earlier[2] + 1 == later[1] for earlier, later in zip(bands, bands[1:])), f"{code} has bands that overlap, descend or leave a gap"
 
     @pytest.mark.parametrize("code", sorted(DEMOGRAPHIC_CONSTRAINTS))
     def test_a_constrained_condition_only_gets_patients_who_could_have_it(self, faker: Faker, code: str) -> None:
@@ -384,6 +412,59 @@ class TestDemographicConstraints:
         """The constraint table must not accidentally pin conditions it says nothing about."""
         faker.seed_instance(304)
         assert {faker.patient(disease="Type 2 Diabetes")["sex"] for _ in range(100)} == {"male", "female"}
+
+    @pytest.mark.parametrize("code,probability", SEX_WEIGHTED)
+    def test_a_weighted_condition_lands_on_the_split_it_declares(self, faker: Faker, code: str, probability: float) -> None:
+        """The measurement the weighting exists for. Breast cancer generated 49% male
+        patients while the table was binary — a fifty-fold error against the real figure
+        of under 1%, and one nothing in the suite would have noticed."""
+        disease = DISEASE_FOR_CODE[code]
+        faker.seed_instance(305)
+        patients = [faker.patient(disease=disease) for _ in range(DEMOGRAPHIC_DRAWS)]
+        observed = sum(patient["sex"] == "female" for patient in patients) / DEMOGRAPHIC_DRAWS
+        assert abs(observed - probability) <= DEMOGRAPHIC_TOLERANCE, f"{disease}: {observed:.3f} female against a configured {probability}"
+
+    @pytest.mark.parametrize("code,probability", SEX_WEIGHTED)
+    def test_a_weighting_stays_a_weighting_and_never_becomes_a_lock(self, faker: Faker, code: str, probability: float) -> None:
+        """The other half of the same claim: a 0.99 weighting must still produce the 1%,
+        because men with breast cancer are a real patient group, not a rounding error."""
+        disease = DISEASE_FOR_CODE[code]
+        faker.seed_instance(306)
+        assert {faker.patient(disease=disease)["sex"] for _ in range(DEMOGRAPHIC_DRAWS)} == {"male", "female"}, disease
+
+    @pytest.mark.parametrize("code,bands", AGE_BANDED)
+    def test_a_banded_condition_lands_on_the_age_shape_it_declares(self, faker: Faker, code: str, bands: tuple) -> None:
+        disease = DISEASE_FOR_CODE[code]
+        faker.seed_instance(307)
+        ages = [faker.patient(disease=disease)["age"] for _ in range(DEMOGRAPHIC_DRAWS)]
+        assert bands[0][1] <= min(ages) and max(ages) <= bands[-1][2], f"{disease}: ages {min(ages)}-{max(ages)} escape its bands"
+        for share, lowest, highest in bands:
+            observed = sum(lowest <= age <= highest for age in ages) / DEMOGRAPHIC_DRAWS
+            assert abs(observed - share / 100) <= DEMOGRAPHIC_TOLERANCE, f"{disease}: {observed:.3f} of patients aged {lowest}-{highest} against a configured {share}%"
+
+    def test_an_adult_only_draw_drops_the_paediatric_band_and_keeps_the_rest_in_proportion(self) -> None:
+        """`patient_record()` asks for adults only. Cystic fibrosis loses its 0-17 band
+        entirely, and the three that survive must keep their sizes relative to each other
+        rather than being flattened into a uniform adult draw."""
+        bands = age_bands_for(DEMOGRAPHIC_CONSTRAINTS["E84.9"], (ADULT_AGE_RANGE[0], PATIENT_AGE_RANGE[1]))
+        assert [(lowest, highest) for _, lowest, highest in bands] == [(18, 39), (40, 59), (60, 80)]
+        total = sum(weight for weight, _, _ in bands)
+        assert [round(weight / total, 2) for weight, _, _ in bands] == [0.73, 0.2, 0.07]
+
+    def test_a_half_clipped_band_carries_half_its_share(self) -> None:
+        """Clipping a band in half has to halve its weight, because the draw inside a
+        band is uniform — otherwise clipping quietly changes the shape it kept."""
+        bands = age_bands_for({"age_bands": ((50, 0, 19), (50, 20, 39))}, (10, 39))
+        assert bands == ((25 * AGE_BAND_RESOLUTION, 10, 19), (50 * AGE_BAND_RESOLUTION, 20, 39))
+
+    def test_an_unbanded_condition_is_one_uniform_band(self) -> None:
+        """Which is what keeps the common case a single draw from a single range."""
+        assert age_bands_for({}, PATIENT_AGE_RANGE) == ((AGE_BAND_RESOLUTION,) + PATIENT_AGE_RANGE,)
+        assert age_bands_for({"min_age": 45}, PATIENT_AGE_RANGE) == ((AGE_BAND_RESOLUTION, 45, PATIENT_AGE_RANGE[1]),)
+
+    def test_bands_that_survive_nothing_raise_rather_than_returning_an_impossible_age(self) -> None:
+        with pytest.raises(ValueError, match="No age between"):
+            age_bands_for({"age_bands": ((100, 0, 2),)}, (ADULT_AGE_RANGE[0], PATIENT_AGE_RANGE[1]))
 
     def test_unknown_disease_raises(self, faker: Faker) -> None:
         with pytest.raises(ValueError, match="Not A Disease"):

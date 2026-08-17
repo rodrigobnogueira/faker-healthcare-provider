@@ -275,9 +275,27 @@ The words live in the six `clinical_labels.py` files.
   occurrence undosed rather than adding a wrong name.
 - **Demographic constraints are locale-neutral and keyed by ICD-10 code.** "Female" is a
   fact about preeclampsia, not a word about it. Constrain only what is unambiguous, and
-  when you decide *not* to constrain something that looks constrained, write down why:
-  breast cancer is not female-only, and congenital heart disease and cystic fibrosis are
-  no longer paediatric conditions.
+  when you decide *not* to constrain something that looks constrained, write down why —
+  the haemophilia entry's code is *acquired* haemophilia, which has no sex skew, and
+  sickle cell disease skews by ancestry, which this package does not model.
+- **A demographic skew is weighted and sourced, never asserted as an absolute unless it
+  genuinely is one.** There are three strengths available and the wrong one ships a false
+  fact:
+  - `sex` locks a condition to one sex. Preeclampsia is female, full stop;
+  - `female_probability` weights it — the share of patients who are female — for a
+    condition that is strongly skewed but not locked. Breast cancer is 0.99, not "female";
+  - `min_age`/`max_age` bound a uniform age draw; `age_bands` — `(share, lowest, highest)`
+    triples, contiguous and summing to 100 — replace them with a shape for a condition
+    whose real age distribution is nothing like uniform; an absent key means "anyone".
+
+  **Cite the figure in the comment above the entry**, the same bar as a lab correlation:
+  "male breast cancer is under 1% of breast cancers (American Cancer Society)", not
+  "mostly women". A skew you cannot source is not added. Remember that leaving a condition
+  free is also a claim — for one release breast cancer generated 49% male patients, which
+  is a worse error than the male-preeclampsia bug the table was written to prevent, while
+  locking it to female would have erased a real patient group. `TestDemographicConstraints`
+  draws thousands of seeded patients per weighted condition and fails if the observed
+  split or age shape drifts from the configured one, so a weighting cannot be a comment.
 - **`patient_record()` is adults only**, for the same reason `body_measurements()` is: the
   reference intervals, dose ladders and anthropometry here are adult data. It refuses a
   paediatric-only condition instead of ageing the patient up. `patient()` will happily
