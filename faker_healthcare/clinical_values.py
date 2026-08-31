@@ -198,8 +198,13 @@ LAB_DEFINITIONS: dict[str, LabDefinition] = {
 #     produces in-range values, which is an honest "nothing specific to see here".
 #
 # Deliberately absent, as worked examples of the bar:
-#   * D68.311 (haemophilia): the abnormal clotting test is the APTT, not the INR, which
-#     is normal. An "INR high" entry here would teach the wrong thing;
+#   * D66 (haemophilia A): the abnormal clotting test is the APTT, not the INR, which is
+#     normal — factor VIII sits in the intrinsic pathway and the INR reads the extrinsic
+#     one. An "INR high" entry here would teach the wrong thing, and this panel carries
+#     no APTT to be right with, so the condition correctly has no entry. (This example
+#     was keyed to D68.311 until the catalogue entry was corrected from acquired to
+#     congenital haemophilia. The reasoning survived the recode rather than being
+#     rewritten for it: an acquired factor VIII inhibitor prolongs the same APTT.);
 #   * I21.9 (myocardial infarction), I26.99 (pulmonary embolism): the diagnostic
 #     analytes are troponin and D-dimer, which this panel does not carry;
 #   * M81.0 (osteoporosis): routine biochemistry is characteristically normal, and that
@@ -358,13 +363,6 @@ ADULT_AGE_RANGE = (18, 110)
 # a neutral default, it was a claim, and a wrong one.
 #
 # Deliberately absent or deliberately unweighted, as worked examples of the bar:
-#   * D68.311 (haemophilia): the code shipped here is *acquired* haemophilia — an
-#     autoimmune inhibitor disorder, mostly of older adults, affecting both sexes — so
-#     the near-total male skew of X-linked haemophilia would be a wrong fact under this
-#     code. The catalogue's medications for the condition (factor VIII, factor IX,
-#     emicizumab) read like congenital haemophilia A/B, which is D66/D67. That
-#     contradiction has to be settled in the catalogue before any sex weight here can be
-#     sourced, and asserting one now would silently pick a side;
 #   * D57.1 (sickle cell disease): its strong skew is by ancestry, which this package
 #     does not model at all, and not by sex or age;
 #   * I21.9 (myocardial infarction), I63.9 (stroke), C34.90 (lung cancer): each skews
@@ -448,6 +446,28 @@ DEMOGRAPHIC_CONSTRAINTS: dict[str, DemographicConstraint] = {
     # 15% of boys and 8% of girls aged 3-17 had ever been diagnosed with ADHD in the 2022
     # National Survey of Children's Health (CDC). Diagnosed, with the same caveat.
     "F90.9": {"female_probability": 0.35},  # Attention deficit hyperactivity disorder
+    # Haemophilia A is X-linked recessive, so it is overwhelmingly but not exclusively
+    # male: heterozygous females can carry factor VIII levels low enough to bleed, and
+    # current practice calls them women with haemophilia rather than carriers. The WFH
+    # Report on the Annual Global Survey 2019, Table 9 (Sex distribution), identified
+    # 157,517 people with haemophilia A across 115 reporting countries — 137,574 male
+    # (87%), 5,604 female (4%), 6,580 sex not recorded (4%). 0.04 is that registered
+    # share, and it is a floor rather than a biological ratio: the WFH's own
+    # carrier-based estimate is that roughly a third of people with haemophilia should be
+    # women and girls, so the registers are missing most of them. The registered figure
+    # is still the one used here, for the reason F84.0 uses the *diagnosed* autism ratio
+    # — a fixture built from coded records should look like coded records, and D66 is a
+    # code somebody assigned. Locking this to "male" would be the worse error in the
+    # other direction: it would make women with haemophilia ungeneratable, which is
+    # exactly the population the literature says is already invisible.
+    # No age constraint, and that is the other half of the recode. D68.311 (acquired
+    # haemophilia) peaks in the elderly and the postpartum, so the old code carried an
+    # age story this one does not: D66 is congenital and present from birth, which leaves
+    # no floor to state. There is no sourced ceiling either — the only published age
+    # tables (WFH AGS 2019, Tables 11-12) stop at a single "45+" band and are dominated
+    # by countries whose shape reflects access to care rather than the disease. Unlike
+    # E84.9, there is no shape here worth shipping, so the uniform draw stands.
+    "D66": {"female_probability": 0.04},  # Haemophilia A (hereditary factor VIII deficiency)
     # ---- Lifelong, but not spread evenly across a lifetime. ----
     # Adults are two-thirds of the people living with congenital heart disease: 66% (95%
     # CI 64-68) in 2010, up from 49% in 2000 (Marelli et al., Circulation

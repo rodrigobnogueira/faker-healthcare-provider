@@ -89,6 +89,23 @@ When you add or edit a disease:
 - The `icd10` must be the correct WHO ICD-10 code for that condition. Check it is the code for
   the condition you named, not a neighbouring one: rheumatoid arthritis shipped as `M79.1`
   (*Myalgia*, non-billable) for several releases before it was corrected to `M06.9`.
+- **The code and the medications must name the same disease entity**, not merely be
+  individually correct. `Hemophilia` shipped as `D68.311` — *acquired* haemophilia, an
+  autoimmune factor VIII inhibitor of the elderly and the postpartum, managed with
+  immunosuppression and bypassing agents — carrying `["Factor VIII", "Factor IX",
+  "Desmopressin", "Antifibrinolytics", "Emicizumab"]`, which is congenital haemophilia A
+  and B therapy. Emicizumab's FDA label says "hemophilia A (congenital factor VIII
+  deficiency)" in as many words. Every check in the suite passed on it: valid code, real
+  drugs, right specialty, matching counts in all six locales, correct Chinese equivalents
+  — because nothing asked whether the fields were about the same disease. Watch the
+  **acquired / hereditary** pair especially, where one clinical word covers two codes in
+  different parts of the classification: `D66` and `D67` are hereditary factor VIII and
+  factor IX deficiency, `D68.311` is the acquired form.
+  `tests/test_locales.py::TestDiseaseEntityCoherence` enforces this as a table of codes
+  and the therapies that belong to a *different* entity, checked in all six locales and
+  proved against the entry as it shipped. Extend that table when you meet the next such
+  pair; it already covers codes the catalogue does not yet carry, so a wrong `D67` entry
+  fails before it is reviewed.
 - `symptoms` must be symptoms that condition actually causes, and **each entry must be a
   self-contained clinical term**. Never split one sentence across slots: stress incontinence
   once read `["Urine Leakage with Coughing", "Sneezing", "Exercise", "Lifting", "Laughing"]`,
@@ -200,9 +217,16 @@ split applies: **numeric tables are locale-neutral, only words are translated.**
 - **Demographic constraints live once**, in `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed
   by ICD-10 code. Sex and age are facts about a condition, not words about it, so they are
   never copied into six catalogues. Constrain only what is unambiguous, and record the
-  reasoning for a condition you deliberately did NOT constrain (haemophilia's shipped code
-  is *acquired* haemophilia, which has no sex skew; sickle cell disease skews by ancestry,
-  which this package does not model).
+  reasoning for a condition you deliberately did NOT constrain (sickle cell disease skews
+  by ancestry, which this package does not model; myocardial infarction skews male by a
+  ratio that moves too much between populations to state as one number).
+- **A demographic constraint is downstream of the code being right.** Haemophilia went
+  unweighted for a release because its shipped code was `D68.311`, *acquired* haemophilia,
+  which affects both sexes — the X-linked male skew would have been a false fact under that
+  code. It only became sourceable once the entry was corrected to `D66`. When a code
+  changes, the constraint keyed to it moves with it and its reasoning is re-derived, not
+  carried across: the age story changed too, because acquired haemophilia peaks in the
+  elderly and the postpartum while the congenital disease is present from birth.
 - **A skew is weighted and sourced; it is never asserted as an absolute unless it is one.**
   The table offers three strengths and choosing the wrong one generates a false fact:
   - `sex` is an **absolute lock** — preeclampsia is female, full stop. Use it only where
@@ -347,9 +371,21 @@ extract or a de-identification test rig actually holds.
   - `REAL_PRODUCT_DENYLIST`, `ZH_REAL_PRODUCT_DENYLIST` and `OFFENSIVE_SUBSTRINGS` are
     **append-only**. A name is never removed once added, whatever the reason it went in: removing
     one silently re-admits a name a reviewer already rejected. Discontinued products and marginal
-    collisions stay. Write the reason beside each entry — a 2026-08-16 reading pass rejected 58 of
-    the 64 Chinese names then shipping, and the value of that pass is in the 58 recorded reasons,
-    not in the 6 survivors.
+    collisions stay. Write the reason beside each entry — two reading passes have rejected 395
+    Chinese candidates (58 on 2026-08-16, 337 on 2026-08-17), and the value of those passes is in
+    the 395 recorded reasons, not in the 25 survivors. `tests/test_locales.py` enforces both halves
+    of that: every denylist entry must carry a `#` reason, and the 64 candidates the first pass
+    read must all still be either shipped or refused by a screen.
+  - **A shipped name can be withdrawn; that is the denylist growing, not shrinking.** 复安 shipped
+    from the first pass and was withdrawn by the second — it is the tail of 胃复安, the household
+    name for metoclopramide. Add it to the denylist with its reason and re-run the script; never
+    delete it from `REVIEWED_ZH_NAMES` alone, or the next reviewer will re-propose it.
+  - **Widen a pool by adding candidates, never by relaxing a screen.** When six shipped Chinese
+    names proved too thin, the fix was eleven more characters through the same reading pass — 370
+    candidates read, 20 kept. Nine of the eleven characters yielded nothing, because the auspicious
+    half of the pool (康/泰/瑞/华/乐/佳/元/力/悦/怡/明/朗/恒/顺/畅/静/健) reads as companies, given
+    names, places and efficacy claims, while the clinical half (复/安/宁/舒/恩/欣/迪/达/润/灵) reads
+    as medicine. Ship the honest survivor count and say so in the PR; do not pad to a target.
   - Do not restore the old design. `brand_drug()` used to concatenate morphemes at call time (31,500
     names, 30,752 more in zh_CN), retry 12 times against the INN stems, and **return the last
     attempt anyway** when every retry failed. Nothing screened those names for real products, and
@@ -427,8 +463,9 @@ and is governed by the rules above instead.
   INN-stem screen (for Chinese, `ZH_GENERIC_MORPHEMES` — a name that reads as a substance is
   not a brand), its own reviewed list, its own `--propose`, and the same whole-set test. The
   TODO above is where such a list *starts*, not where it is allowed to stay: the 64 unreviewed
-  Chinese names carried that TODO for one release, a reading pass then rejected 58 of them, and
-  the six survivors are what "screened" honestly means here.
+  Chinese names carried that TODO for one release, a reading pass then rejected 58 of them, a
+  second pass widened the pool and rejected 337 more, and the 25 survivors are what "screened"
+  honestly means here.
 - **When the TODO is discharged, replace it with what was actually done — including what was
   not.** "Read one by one in Simplified Chinese on <date> against <these criteria>; not a
   trademark search; no native speaker's sign-off recorded" is checkable and is the whole

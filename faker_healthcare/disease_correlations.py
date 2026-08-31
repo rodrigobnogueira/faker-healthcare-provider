@@ -620,10 +620,42 @@ DISEASE_CORRELATIONS: dict[str, DiseaseData] = {
         "medications": ["Hydroxyurea", "Pain Relievers", "Antibiotics", "Blood Transfusions", "Voxelotor"],
         "medical_specialty": "Hematology",
     },
-    "Hemophilia": {
-        "icd10": "D68.311",
+    # The one commented entry in this file, because it is the one whose four fields used
+    # to describe two different diseases. It shipped as "Hemophilia" under D68.311, which
+    # is *acquired* haemophilia (ICD-10-CM inclusion terms: autoimmune hemophilia,
+    # autoimmune inhibitors to clotting factors, secondary hemophilia) — an autoimmune
+    # factor VIII inhibitor of the elderly and the postpartum that bleeds into skin,
+    # muscle and soft tissue rather than joints, and is managed with immunosuppression
+    # and bypassing agents. Its name, its symptoms (Hemarthrosis and Joint Pain are the
+    # congenital disease's hallmark and are uncommon in the acquired one) and its whole
+    # medication list all described congenital haemophilia instead, so the code was the
+    # one field outvoted. D66 is "Hereditary factor VIII deficiency", whose ICD-10-CM
+    # inclusion terms are Classical hemophilia, Deficiency factor VIII (with functional
+    # defect), Hemophilia NOS and Hemophilia A — so it is also the code the unqualified
+    # name already indexed to, and recoding narrows nothing. Haemophilia B is D67
+    # (hereditary factor IX deficiency, Christmas disease) and is not in this catalogue,
+    # which is why factor IX is no longer prescribed here.
+    # Each medication is licensed or guideline-recommended for haemophilia A specifically:
+    #   * Factor VIII — replacement of the protein D66 is named for (WFH Guidelines for
+    #     the Management of Hemophilia, 3rd ed., Srivastava et al., Haemophilia
+    #     2020;26(S6):1-158);
+    #   * Desmopressin — FDA DDAVP Injection label: indicated in haemophilia A with
+    #     factor VIII coagulant activity above 5%, and explicitly NOT indicated in
+    #     haemophilia B;
+    #   * Tranexamic Acid — FDA CYKLOKAPRON label: indicated in patients with haemophilia
+    #     for short-term use around tooth extraction. It replaces the class name
+    #     "Antifibrinolytics", which named no substance and therefore had no dose;
+    #   * Emicizumab — FDA HEMLIBRA label, verbatim: "hemophilia A (congenital factor
+    #     VIII deficiency) with or without factor VIII inhibitors". The label's own word
+    #     "congenital" is what made the old pairing with D68.311 self-contradictory.
+    # The five symptoms all belong to the congenital disease and are unchanged; CDC lists
+    # bleeding into joints, easy bruising and hard-to-stop nosebleeds among its signs.
+    # The sex skew that follows from X-linked inheritance is in
+    # `clinical_values.DEMOGRAPHIC_CONSTRAINTS`, keyed by this code.
+    "Hemophilia A": {
+        "icd10": "D66",
         "symptoms": ["Prolonged Bleeding", "Joint Pain", "Bruising", "Hemarthrosis", "Nosebleeds"],
-        "medications": ["Factor VIII", "Factor IX", "Desmopressin", "Antifibrinolytics", "Emicizumab"],
+        "medications": ["Factor VIII", "Desmopressin", "Tranexamic Acid", "Emicizumab"],
         "medical_specialty": "Hematology",
     },
     "Thrombocytopenia": {
