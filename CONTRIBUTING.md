@@ -20,9 +20,9 @@ corrected in the same PR.
 
 ## Supported versions
 
-- **Python 3.10 – 3.14** (see the `Programming Language` classifiers in
+- **Python 3.11 – 3.15** (see the `Programming Language` classifiers in
   `pyproject.toml`; the `Tests` workflow runs the suite on every one of them).
-  Code must stay valid on 3.10 — no syntax or stdlib API newer than that.
+  Code must stay valid on 3.11 — no syntax or stdlib API newer than that.
 - **Faker >= 18.0.0** (`dependencies` in `pyproject.toml`). Stick to long-standing
   `BaseProvider` API (`self.random_element`, `self.generator.random`); do not rely on
   behaviour introduced in a newer Faker without raising the floor deliberately.
@@ -570,7 +570,7 @@ Run the full suite (including the performance tests) before opening a PR.
 - Keep PRs focused: one condition set, one feature, or one fix.
 - Say where the medical facts came from. "Verified against the ICD-10-CM index" with a
   link beats "looks right".
-- All four gates must be green; CI runs them on Python 3.10–3.14.
+- All four gates must be green; CI runs them on Python 3.11–3.15.
 - Keep mechanical reformatting in its own commit, separate from substantive edits.
 
 If you are unsure whether something fits — especially a large data import — open an

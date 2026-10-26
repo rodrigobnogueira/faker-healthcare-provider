@@ -3,11 +3,11 @@
 A note on optional keys. Two of the shapes below have keys that are present only
 sometimes — a demographic constraint may pin sex, an age range, or both, and a patient
 record carries an assessment score only for a psychiatric condition. `typing.NotRequired`
-expresses that in one class, but it arrived in Python 3.11 and this package supports
-3.10 (`requires-python = ">=3.10"` in pyproject.toml, and the Tests workflow runs 3.10),
-so the two-class form is used instead: a `TypedDict` holding the required keys, and a
-subclass declared `total=False` adding the optional ones. Do not "simplify" it to
-`NotRequired` without raising the floor first.
+expresses that in one class, but it arrived in Python 3.11 and these shapes were written
+for a 3.10 floor, so the two-class form is used instead: a `TypedDict` holding the
+required keys, and a subclass declared `total=False` adding the optional ones. The floor
+is now 3.11 (`requires-python = ">=3.11"` in pyproject.toml), so `NotRequired` is
+available; switching to it is a refactor of its own, not part of a floor bump.
 """
 
 from datetime import date
@@ -247,8 +247,8 @@ class PatientRecord(_PatientRecordBase, total=False):
 
     `assessment` is the one optional key — it is present only for a psychiatric
     condition, because a PHQ-9 score on a record whose diagnosis is a fractured wrist is
-    not a realistic record. Two classes rather than one `NotRequired`, for the 3.10
-    reason given in this module's docstring.
+    not a realistic record. Two classes rather than one `NotRequired`, for the reason
+    given in this module's docstring.
     """
 
     assessment: AssessmentScore
