@@ -37,8 +37,8 @@ changes small, data-focused, and easy to verify.
   locale defines the same key set for both.
 - `faker_healthcare/types.py` — `DiseaseData` / `PatientScenario` / `Patient` /
   `PatientRecord` / measurement, order and assessment TypedDicts (the data shapes).
-  Optional keys use the two-class TypedDict form, not `typing.NotRequired`, because the
-  package supports Python 3.10.
+  Optional keys use the two-class TypedDict form, not `typing.NotRequired`, a choice made
+  for the former Python 3.10 floor (see the `types.py` docstring).
 - `faker_healthcare/<locale>/` — one package per locale (`pt_BR`, `es_ES`, `zh_CN`, `fr_FR`,
   `de_DE`), each with its own `__init__.py` (a `Provider` subclass), `constants.py`,
   `clinical_labels.py`, and `disease_correlations.py`.
